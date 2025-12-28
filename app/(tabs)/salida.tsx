@@ -1,42 +1,41 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  Modal,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
+import { useRefresh } from '../../utils/RefreshContext';
 import { agregarTransaccion, Transaccion } from '../../utils/storage';
 
 const CATEGORIAS = ['Productos', 'Arriendo', 'Servicios', 'Otros'];
 
 export default function SalidaScreen() {
+  const { refreshKey, refresh, setLoading, showToast } = useRefresh();
+
   const [categoria, setCategoria] = useState<string>('');
   const [concepto, setConcepto] = useState('');
   const [monto, setMonto] = useState('');
   const [metodoPago, setMetodoPago] = useState<'efectivo' | 'sinpe'>('efectivo');
   const [modalCategoria, setModalCategoria] = useState(false);
 
+  React.useEffect(() => {
+    // reload when global refresh is triggered
+  }, [refreshKey]);
+
   const registrarSalida = async () => {
     if (!categoria) {
-      Alert.alert('Error', 'Por favor selecciona una categoría');
+      showToast('Por favor selecciona una categoría', 'error');
       return;
     }
 
     if (!concepto.trim()) {
-      Alert.alert('Error', 'Por favor ingresa un concepto');
+      showToast('Por favor ingresa un concepto', 'error');
       return;
     }
 
     const montoNum = parseFloat(monto);
     if (isNaN(montoNum) || montoNum <= 0) {
-      Alert.alert('Error', 'Por favor ingresa un monto válido');
+      showToast('Por favor ingresa un monto válido', 'error');
       return;
     }
 
@@ -50,14 +49,22 @@ export default function SalidaScreen() {
       fecha: new Date().toISOString(),
     };
 
-    await agregarTransaccion(nuevaTransaccion);
-    Alert.alert('Éxito', 'Gasto registrado correctamente');
-    
-    // Limpiar formulario
-    setCategoria('');
-    setConcepto('');
-    setMonto('');
-    setMetodoPago('efectivo');
+    try {
+      setLoading(true);
+      await agregarTransaccion(nuevaTransaccion);
+      showToast('Gasto registrado correctamente', 'success');
+      // Limpiar formulario
+      setCategoria('');
+      setConcepto('');
+      setMonto('');
+      setMetodoPago('efectivo');
+      refresh();
+    } catch (err) {
+      console.error(err);
+      showToast('No se pudo registrar el gasto', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -76,13 +83,8 @@ export default function SalidaScreen() {
             {/* Categoría */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Categoría</Text>
-              <TouchableOpacity
-                style={styles.selector}
-                onPress={() => setModalCategoria(true)}
-              >
-                <Text style={categoria ? styles.selectorTextSelected : styles.selectorText}>
-                  {categoria || 'Selecciona una categoría'}
-                </Text>
+              <TouchableOpacity style={styles.selector} onPress={() => setModalCategoria(true)}>
+                <Text style={categoria ? styles.selectorTextSelected : styles.selectorText}>{categoria || 'Selecciona una categoría'}</Text>
                 <Ionicons name="chevron-down" size={20} color="#64748b" />
               </TouchableOpacity>
             </View>
@@ -90,45 +92,24 @@ export default function SalidaScreen() {
             {/* Concepto */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Concepto</Text>
-              <Input
-                value={concepto}
-                onChangeText={setConcepto}
-                placeholder="Ej: Champú profesional"
-              />
+              <Input value={concepto} onChangeText={setConcepto} placeholder="Ej: Champú profesional" />
             </View>
 
             {/* Monto */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Monto (₡)</Text>
-              <Input
-                value={monto}
-                onChangeText={setMonto}
-                keyboardType="numeric"
-                placeholder="0"
-              />
+              <Input value={monto} onChangeText={setMonto} keyboardType="numeric" placeholder="0" />
             </View>
 
             {/* Método de pago */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Método de Pago</Text>
               <View style={styles.paymentButtons}>
-                <TouchableOpacity
-                  style={[
-                    styles.paymentButton,
-                    metodoPago === 'efectivo' && styles.paymentButtonActive,
-                  ]}
-                  onPress={() => setMetodoPago('efectivo')}
-                >
+                <TouchableOpacity style={[styles.paymentButton, metodoPago === 'efectivo' && styles.paymentButtonActive]} onPress={() => setMetodoPago('efectivo')}>
                   <Text style={styles.emoji}>💵</Text>
                   <Text style={styles.paymentButtonText}>Efectivo</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.paymentButton,
-                    metodoPago === 'sinpe' && styles.paymentButtonActive,
-                  ]}
-                  onPress={() => setMetodoPago('sinpe')}
-                >
+                <TouchableOpacity style={[styles.paymentButton, metodoPago === 'sinpe' && styles.paymentButtonActive]} onPress={() => setMetodoPago('sinpe')}>
                   <Text style={styles.emoji}>📱</Text>
                   <Text style={styles.paymentButtonText}>Sinpe</Text>
                 </TouchableOpacity>
@@ -145,20 +126,13 @@ export default function SalidaScreen() {
         {/* Información de categorías */}
         <Card style={[styles.card, styles.infoCard]}>
           <CardContent>
-            <Text style={styles.infoText}>
-              💡 Registra aquí todos los gastos relacionados con el negocio de la barbería
-            </Text>
+            <Text style={styles.infoText}>💡 Registra aquí todos los gastos relacionados con el negocio de la barbería</Text>
           </CardContent>
         </Card>
       </View>
 
       {/* Modal de selección de categoría */}
-      <Modal
-        visible={modalCategoria}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalCategoria(false)}
-      >
+      <Modal visible={modalCategoria} animationType="slide" transparent={true} onRequestClose={() => setModalCategoria(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -169,21 +143,9 @@ export default function SalidaScreen() {
             </View>
             <View style={styles.modalList}>
               {CATEGORIAS.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[
-                    styles.modalItem,
-                    categoria === cat && styles.modalItemSelected,
-                  ]}
-                  onPress={() => {
-                    setCategoria(cat);
-                    setModalCategoria(false);
-                  }}
-                >
+                <TouchableOpacity key={cat} style={[styles.modalItem, categoria === cat && styles.modalItemSelected]} onPress={() => { setCategoria(cat); setModalCategoria(false); }}>
                   <Text style={styles.modalItemName}>{cat}</Text>
-                  {categoria === cat && (
-                    <Ionicons name="checkmark-circle" size={24} color="#22c55e" />
-                  )}
+                  {categoria === cat && <Ionicons name="checkmark-circle" size={24} color="#22c55e" />}
                 </TouchableOpacity>
               ))}
             </View>

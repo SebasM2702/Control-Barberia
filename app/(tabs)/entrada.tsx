@@ -1,17 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  Modal,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
+import { useRefresh } from '../../utils/RefreshContext';
 import {
   cargarServicios,
   guardarServicios,
@@ -27,27 +20,42 @@ export default function EntradaScreen() {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [precioEditado, setPrecioEditado] = useState('');
   const [mostrarServicios, setMostrarServicios] = useState(false);
-  
+
   // Modal para agregar servicio
   const [modalNuevoServicio, setModalNuevoServicio] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevoPrecio, setNuevoPrecio] = useState('');
-  
+
   // Modal para seleccionar servicio
   const [modalSeleccion, setModalSeleccion] = useState(false);
+
+  const { refreshKey, refresh, setLoading, showToast } = useRefresh();
 
   useEffect(() => {
     cargarDatos();
   }, []);
 
+  useEffect(() => {
+    // reload when refresh is triggered
+    cargarDatos();
+  }, [refreshKey]);
+
   const cargarDatos = async () => {
-    const serviciosCargados = await cargarServicios();
-    setServicios(serviciosCargados);
+    try {
+      setLoading(true);
+      const serviciosCargados = await cargarServicios();
+      setServicios(serviciosCargados);
+    } catch (err) {
+      console.error(err);
+      showToast('No se pudieron cargar los servicios', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const registrarEntrada = async () => {
     if (!servicioSeleccionado) {
-      Alert.alert('Error', 'Por favor selecciona un servicio');
+      showToast('Por favor selecciona un servicio', 'error');
       return;
     }
 
@@ -63,37 +71,53 @@ export default function EntradaScreen() {
       fecha: new Date().toISOString(),
     };
 
-    await agregarTransaccion(nuevaTransaccion);
-    Alert.alert('Éxito', 'Entrada registrada correctamente');
-    setServicioSeleccionado('');
-    setMetodoPago('efectivo');
+    try {
+      setLoading(true);
+      await agregarTransaccion(nuevaTransaccion);
+      showToast('Entrada registrada correctamente', 'success');
+      setServicioSeleccionado('');
+      setMetodoPago('efectivo');
+      refresh();
+    } catch (err) {
+      console.error(err);
+      showToast('No se pudo registrar la entrada', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const guardarEdicion = async (id: string) => {
     const precioNum = parseFloat(precioEditado);
     if (isNaN(precioNum) || precioNum < 0) {
-      Alert.alert('Error', 'Precio inválido');
+      showToast('Precio inválido', 'error');
       return;
     }
 
-    const nuevosServicios = servicios.map((s) =>
-      s.id === id ? { ...s, precio: precioNum } : s
-    );
-    await guardarServicios(nuevosServicios);
-    setServicios(nuevosServicios);
-    setEditandoId(null);
-    Alert.alert('Éxito', 'Precio actualizado');
+    try {
+      setLoading(true);
+      const nuevosServicios = servicios.map((s) => (s.id === id ? { ...s, precio: precioNum } : s));
+      await guardarServicios(nuevosServicios);
+      setServicios(nuevosServicios);
+      setEditandoId(null);
+      showToast('Precio actualizado', 'success');
+      refresh();
+    } catch (err) {
+      console.error(err);
+      showToast('No se pudo actualizar el precio', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const agregarNuevoServicio = async () => {
     if (!nuevoNombre.trim()) {
-      Alert.alert('Error', 'Por favor ingresa el nombre del servicio');
+      showToast('Por favor ingresa el nombre del servicio', 'error');
       return;
     }
 
     const precioNum = parseFloat(nuevoPrecio);
     if (isNaN(precioNum) || precioNum < 0) {
-      Alert.alert('Error', 'Por favor ingresa un precio válido');
+      showToast('Por favor ingresa un precio válido', 'error');
       return;
     }
 
@@ -103,14 +127,22 @@ export default function EntradaScreen() {
       precio: precioNum,
     };
 
-    const nuevosServicios = [...servicios, nuevoServicio];
-    await guardarServicios(nuevosServicios);
-    setServicios(nuevosServicios);
-    
-    Alert.alert('Éxito', 'Servicio agregado correctamente');
-    setNuevoNombre('');
-    setNuevoPrecio('');
-    setModalNuevoServicio(false);
+    try {
+      setLoading(true);
+      const nuevosServicios = [...servicios, nuevoServicio];
+      await guardarServicios(nuevosServicios);
+      setServicios(nuevosServicios);
+      showToast('Servicio agregado correctamente', 'success');
+      setNuevoNombre('');
+      setNuevoPrecio('');
+      setModalNuevoServicio(false);
+      refresh();
+    } catch (err) {
+      console.error(err);
+      showToast('No se pudo agregar el servicio', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const confirmarEliminar = (id: string) => {
@@ -123,17 +155,26 @@ export default function EntradaScreen() {
           text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
-            const nuevosServicios = servicios.filter((s) => s.id !== id);
-            await guardarServicios(nuevosServicios);
-            setServicios(nuevosServicios);
-            Alert.alert('Éxito', 'Servicio eliminado');
+            try {
+              setLoading(true);
+              const nuevosServicios = servicios.filter((s) => s.id !== id);
+              await guardarServicios(nuevosServicios);
+              setServicios(nuevosServicios);
+              showToast('Servicio eliminado', 'success');
+              refresh();
+            } catch (err) {
+              console.error(err);
+              showToast('No se pudo eliminar el servicio', 'error');
+            } finally {
+              setLoading(false);
+            }
           },
         },
       ]
     );
   };
 
-  const servicioActual = servicios.find(s => s.id === servicioSeleccionado);
+  const servicioActual = servicios.find((s) => s.id === servicioSeleccionado);
 
   return (
     <ScrollView style={styles.container}>
@@ -151,12 +192,11 @@ export default function EntradaScreen() {
             {/* Selector de servicio */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Servicio</Text>
-              <TouchableOpacity
-                style={styles.selector}
-                onPress={() => setModalSeleccion(true)}
-              >
+              <TouchableOpacity style={styles.selector} onPress={() => setModalSeleccion(true)}>
                 <Text style={servicioActual ? styles.selectorTextSelected : styles.selectorText}>
-                  {servicioActual ? `${servicioActual.nombre} - ₡${servicioActual.precio.toLocaleString()}` : 'Selecciona un servicio'}
+                  {servicioActual
+                    ? `${servicioActual.nombre} - ₡${servicioActual.precio.toLocaleString()}`
+                    : 'Selecciona un servicio'}
                 </Text>
                 <Ionicons name="chevron-down" size={20} color="#64748b" />
               </TouchableOpacity>
@@ -167,20 +207,14 @@ export default function EntradaScreen() {
               <Text style={styles.label}>Método de Pago</Text>
               <View style={styles.paymentButtons}>
                 <TouchableOpacity
-                  style={[
-                    styles.paymentButton,
-                    metodoPago === 'efectivo' && styles.paymentButtonActive,
-                  ]}
+                  style={[styles.paymentButton, metodoPago === 'efectivo' && styles.paymentButtonActive]}
                   onPress={() => setMetodoPago('efectivo')}
                 >
                   <Text style={styles.emoji}>💵</Text>
                   <Text style={styles.paymentButtonText}>Efectivo</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[
-                    styles.paymentButton,
-                    metodoPago === 'sinpe' && styles.paymentButtonActive,
-                  ]}
+                  style={[styles.paymentButton, metodoPago === 'sinpe' && styles.paymentButtonActive]}
                   onPress={() => setMetodoPago('sinpe')}
                 >
                   <Text style={styles.emoji}>📱</Text>
@@ -198,15 +232,10 @@ export default function EntradaScreen() {
 
         {/* Lista de servicios */}
         <Card style={styles.card}>
-          <TouchableOpacity
-            style={styles.cardHeaderCollapsible}
-            onPress={() => setMostrarServicios(!mostrarServicios)}
-          >
+          <TouchableOpacity style={styles.cardHeaderCollapsible} onPress={() => setMostrarServicios(!mostrarServicios)}>
             <View>
               <Text style={styles.cardTitle}>Lista de Servicios</Text>
-              <Text style={styles.cardDescription}>
-                Toca para {mostrarServicios ? 'ocultar' : 'ver'} precios
-              </Text>
+              <Text style={styles.cardDescription}>Toca para {mostrarServicios ? 'ocultar' : 'ver'} precios</Text>
             </View>
             <Ionicons name="create-outline" size={20} color="#94a3b8" />
           </TouchableOpacity>
@@ -219,30 +248,16 @@ export default function EntradaScreen() {
                     <Text style={styles.servicioNombre}>{servicio.nombre}</Text>
                     {editandoId === servicio.id ? (
                       <View style={styles.editContainer}>
-                        <Input
-                          value={precioEditado}
-                          onChangeText={setPrecioEditado}
-                          keyboardType="numeric"
-                          placeholder="Precio"
-                          style={styles.editInput}
-                        />
-                        <TouchableOpacity
-                          style={styles.iconButton}
-                          onPress={() => guardarEdicion(servicio.id)}
-                        >
+                        <Input value={precioEditado} onChangeText={setPrecioEditado} keyboardType="numeric" placeholder="Precio" style={styles.editInput} />
+                        <TouchableOpacity style={styles.iconButton} onPress={() => guardarEdicion(servicio.id)}>
                           <Ionicons name="checkmark" size={20} color="#22c55e" />
                         </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.iconButton}
-                          onPress={() => setEditandoId(null)}
-                        >
+                        <TouchableOpacity style={styles.iconButton} onPress={() => setEditandoId(null)}>
                           <Ionicons name="close" size={20} color="#ef4444" />
                         </TouchableOpacity>
                       </View>
                     ) : (
-                      <Text style={styles.servicioPrecio}>
-                        ₡{servicio.precio.toLocaleString()}
-                      </Text>
+                      <Text style={styles.servicioPrecio}>₡{servicio.precio.toLocaleString()}</Text>
                     )}
                   </View>
                   {editandoId !== servicio.id && (
@@ -256,10 +271,7 @@ export default function EntradaScreen() {
                       >
                         <Ionicons name="create-outline" size={20} color="#64748b" />
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.iconButton}
-                        onPress={() => confirmarEliminar(servicio.id)}
-                      >
+                      <TouchableOpacity style={styles.iconButton} onPress={() => confirmarEliminar(servicio.id)}>
                         <Ionicons name="trash-outline" size={20} color="#ef4444" />
                       </TouchableOpacity>
                     </View>
@@ -267,11 +279,7 @@ export default function EntradaScreen() {
                 </View>
               ))}
 
-              <Button
-                onPress={() => setModalNuevoServicio(true)}
-                variant="outline"
-                style={styles.addServiceButton}
-              >
+              <Button onPress={() => setModalNuevoServicio(true)} variant="outline" style={styles.addServiceButton}>
                 <Ionicons name="add" size={20} color="#0f172a" style={{ marginRight: 8 }} />
                 Agregar Servicio
               </Button>
@@ -281,12 +289,7 @@ export default function EntradaScreen() {
       </View>
 
       {/* Modal de selección de servicio */}
-      <Modal
-        visible={modalSeleccion}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalSeleccion(false)}
-      >
+      <Modal visible={modalSeleccion} animationType="slide" transparent={true} onRequestClose={() => setModalSeleccion(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -299,10 +302,7 @@ export default function EntradaScreen() {
               {servicios.map((servicio) => (
                 <TouchableOpacity
                   key={servicio.id}
-                  style={[
-                    styles.modalItem,
-                    servicioSeleccionado === servicio.id && styles.modalItemSelected,
-                  ]}
+                  style={[styles.modalItem, servicioSeleccionado === servicio.id && styles.modalItemSelected]}
                   onPress={() => {
                     setServicioSeleccionado(servicio.id);
                     setModalSeleccion(false);
@@ -310,13 +310,9 @@ export default function EntradaScreen() {
                 >
                   <View>
                     <Text style={styles.modalItemName}>{servicio.nombre}</Text>
-                    <Text style={styles.modalItemPrice}>
-                      ₡{servicio.precio.toLocaleString()}
-                    </Text>
+                    <Text style={styles.modalItemPrice}>₡{servicio.precio.toLocaleString()}</Text>
                   </View>
-                  {servicioSeleccionado === servicio.id && (
-                    <Ionicons name="checkmark-circle" size={24} color="#22c55e" />
-                  )}
+                  {servicioSeleccionado === servicio.id && <Ionicons name="checkmark-circle" size={24} color="#22c55e" />}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -325,12 +321,7 @@ export default function EntradaScreen() {
       </Modal>
 
       {/* Modal para agregar nuevo servicio */}
-      <Modal
-        visible={modalNuevoServicio}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalNuevoServicio(false)}
-      >
+      <Modal visible={modalNuevoServicio} animationType="slide" transparent={true} onRequestClose={() => setModalNuevoServicio(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -342,11 +333,7 @@ export default function EntradaScreen() {
             <View style={styles.modalForm}>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nombre del Servicio</Text>
-                <Input
-                  value={nuevoNombre}
-                  onChangeText={setNuevoNombre}
-                  placeholder="Ej: Tinte de cabello"
-                />
+                <Input value={nuevoNombre} onChangeText={setNuevoNombre} placeholder="Ej: Tinte de cabello" />
               </View>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Precio (₡)</Text>

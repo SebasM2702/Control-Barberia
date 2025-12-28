@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRefresh } from '../../utils/RefreshContext';
 import {
   View,
   Text,
@@ -14,6 +15,10 @@ import { Input } from '../../components/ui/Input';
 import { agregarTransaccion, Transaccion } from '../../utils/storage';
 
 export default function PersonalScreen() {
+  const { refreshKey, refresh, setLoading, showToast } = useRefresh();
+  React.useEffect(() => {
+    // trigger reloads if needed when global refresh happens
+  }, [refreshKey]);
   const [tipo, setTipo] = useState<'personal-entrada' | 'personal-salida'>('personal-entrada');
   const [concepto, setConcepto] = useState('');
   const [monto, setMonto] = useState('');
@@ -21,13 +26,13 @@ export default function PersonalScreen() {
 
   const registrarTransaccion = async () => {
     if (!concepto.trim()) {
-      Alert.alert('Error', 'Por favor ingresa un concepto');
+      showToast('Por favor ingresa un concepto', 'error');
       return;
     }
 
     const montoNum = parseFloat(monto);
     if (isNaN(montoNum) || montoNum <= 0) {
-      Alert.alert('Error', 'Por favor ingresa un monto válido');
+      showToast('Por favor ingresa un monto válido', 'error');
       return;
     }
 
@@ -40,16 +45,24 @@ export default function PersonalScreen() {
       fecha: new Date().toISOString(),
     };
 
-    await agregarTransaccion(nuevaTransaccion);
-    Alert.alert(
-      'Éxito',
-      tipo === 'personal-entrada' ? 'Ingreso personal registrado' : 'Gasto personal registrado'
-    );
-    
-    // Limpiar formulario
-    setConcepto('');
-    setMonto('');
-    setMetodoPago('efectivo');
+    try {
+      setLoading(true);
+      await agregarTransaccion(nuevaTransaccion);
+      showToast(
+        tipo === 'personal-entrada' ? 'Ingreso personal registrado' : 'Gasto personal registrado',
+        'success'
+      );
+      // Limpiar formulario
+      setConcepto('');
+      setMonto('');
+      setMetodoPago('efectivo');
+      refresh();
+    } catch (err) {
+      console.error(err);
+      showToast('No se pudo registrar la transacción', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

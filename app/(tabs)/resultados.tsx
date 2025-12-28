@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useRefresh } from '../../utils/RefreshContext';
 import {
   View,
   Text,
@@ -34,10 +35,24 @@ export default function ResultadosScreen() {
   useEffect(() => {
     cargarDatos();
   }, []);
+  const { refreshKey, setLoading, showToast } = useRefresh();
+
+  useEffect(() => {
+    // recarga cuando se dispara refresh global
+    cargarDatos();
+  }, [refreshKey]);
 
   const cargarDatos = async () => {
-    const trans = await cargarTransacciones();
-    setTransacciones(trans);
+    try {
+      setLoading(true);
+      const trans = await cargarTransacciones();
+      setTransacciones(trans);
+    } catch (err) {
+      console.error(err);
+      showToast('No se pudieron cargar las transacciones', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const transaccionesFiltradas = transacciones.filter((t) => {
@@ -73,12 +88,12 @@ export default function ResultadosScreen() {
       
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri);
-        Alert.alert('Éxito', 'Datos exportados correctamente');
+        showToast('Datos exportados correctamente', 'success');
       } else {
-        Alert.alert('Error', 'No se puede compartir archivos en este dispositivo');
+        showToast('No se puede compartir archivos en este dispositivo', 'error');
       }
     } catch (error) {
-      Alert.alert('Error', 'No se pudo exportar los datos');
+      showToast('No se pudo exportar los datos', 'error');
       console.error(error);
     }
   };
@@ -93,9 +108,17 @@ export default function ResultadosScreen() {
           text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
-            await eliminarTransaccionStorage(id);
-            await cargarDatos();
-            Alert.alert('Éxito', 'Transacción eliminada');
+            try {
+              setLoading(true);
+              await eliminarTransaccionStorage(id);
+              await cargarDatos();
+              showToast('Transacción eliminada', 'success');
+            } catch (err) {
+              console.error(err);
+              showToast('No se pudo eliminar la transacción', 'error');
+            } finally {
+              setLoading(false);
+            }
           },
         },
       ]
@@ -112,9 +135,17 @@ export default function ResultadosScreen() {
           text: 'Limpiar',
           style: 'destructive',
           onPress: async () => {
-            await limpiarTodasTransacciones();
-            await cargarDatos();
-            Alert.alert('Éxito', 'Todas las transacciones han sido eliminadas');
+            try {
+              setLoading(true);
+              await limpiarTodasTransacciones();
+              await cargarDatos();
+              showToast('Todas las transacciones han sido eliminadas', 'success');
+            } catch (err) {
+              console.error(err);
+              showToast('No se pudieron eliminar las transacciones', 'error');
+            } finally {
+              setLoading(false);
+            }
           },
         },
       ]
@@ -501,11 +532,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: 16,
+    justifyContent: 'space-between',
   },
   gridCard: {
-    flex: 1,
-    minWidth: '45%',
+    width: '48%',
     padding: 12,
+    marginBottom: 12,
   },
   statHeader: {
     flexDirection: 'row',

@@ -1,8 +1,10 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRefresh } from '../../utils/RefreshContext';
 
 export default function TabLayout() {
+  const { refresh, showToast } = useRefresh();
   return (
     <Tabs
       screenOptions={{
@@ -21,8 +23,19 @@ export default function TabLayout() {
         headerTitle: () => (
           <View style={styles.headerTitle}>
             <Ionicons name="cut" size={24} color="#0f172a" />
-            <Text style={styles.headerTitleText}>Control Barbería</Text>
+            <Text style={styles.headerTitleText}>Carlos Style</Text>
           </View>
+        ),
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => {
+              refresh();
+              showToast('Actualizando...', 'info');
+            }}
+            style={styles.headerRefresh}
+          >
+            <Ionicons name="refresh" size={20} color="#0f172a" />
+          </TouchableOpacity>
         ),
         tabBarStyle: {
           backgroundColor: '#ffffff',
@@ -89,5 +102,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#0f172a',
+  },
+  headerRefresh: {
+    marginRight: 12,
+    padding: 6,
   },
 });
