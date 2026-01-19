@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import { Animated, Text, View, ActivityIndicator, StyleSheet, Dimensions } from 'react-native';
+import { getStoredSession } from './auth';
 
 type ToastType = 'info' | 'success' | 'error';
 
@@ -9,18 +10,51 @@ type RefreshContextType = {
   loading: boolean;
   setLoading: (v: boolean) => void;
   showToast: (message: string, type?: ToastType, duration?: number) => void;
+  session: { uid?: string; businessId?: string; role?: string; name?: string } | null;
+  setSession: (s: any) => void;
+  sessionLoaded: boolean;
 };
 
 const RefreshContext = createContext<RefreshContextType | undefined>(undefined);
 
 export const RefreshProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [refreshKey, setRefreshKey] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [session, setSession] = useState<any>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+
+  // Load session on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        let s = await getStoredSession();
+        if (s.uid && !s.businessId) {
+          const { loadUserProfile, saveSession } = await import('./auth');
+          const profile = await loadUserProfile(s.uid);
+          if (profile && profile.businessId) {
+            s = { uid: s.uid!, ...profile };
+            await saveSession(s.uid!, profile.businessId!, profile.role || '', profile.name || '');
+          }
+        }
+
+        setSession(s);
+      } catch (e) {
+        console.error('[RefreshContext] Error loading session:', e);
+      } finally {
+        setSessionLoaded(true);
+      }
+    })();
+  }, []);
+
   const refresh = () => {
     setLoading(true);
     setRefreshKey((k) => k + 1);
+    // Also re-check session on global refresh
+    (async () => {
+      const s = await getStoredSession();
+      setSession(s);
+    })();
   };
-
-  const [loading, setLoading] = useState(false);
 
   // Toast state
   const [toastVisible, setToastVisible] = useState(false);
@@ -59,7 +93,7 @@ export const RefreshProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   return (
-    <RefreshContext.Provider value={{ refreshKey, refresh, loading, setLoading, showToast }}>
+    <RefreshContext.Provider value={{ refreshKey, refresh, loading, setLoading, showToast, session, setSession, sessionLoaded }}>
       {children}
 
       {/* Loading overlay */}

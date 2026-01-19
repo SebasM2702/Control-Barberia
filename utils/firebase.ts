@@ -3,6 +3,9 @@
 
 import { Platform } from 'react-native';
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAkCwMa8jxqtdHH2s87H1Adx7FGJnk4ig8",
@@ -16,6 +19,23 @@ const firebaseConfig = {
 
 // Initialize or reuse existing app
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
+// Initialize or reuse auth and firestore instances
+let auth: any = null;
+if (Platform.OS === 'web') {
+  auth = getAuth(app);
+} else {
+  // initializeAuth with AsyncStorage persistence on React Native
+  try {
+    auth = initializeAuth(app, { persistence: getReactNativePersistence(ReactNativeAsyncStorage) });
+  } catch (e) {
+    // fallback to getAuth if initializeAuth fails
+    console.warn('initializeAuth failed, falling back to getAuth', e);
+    auth = getAuth(app);
+  }
+}
+
+const db = getFirestore(app);
 
 // Firebase Analytics is web-only in the Firebase JS SDK; avoid importing it on native to prevent runtime errors.
 // We dynamically import analytics only on web.
@@ -36,7 +56,7 @@ if (Platform.OS === 'web') {
     });
 }
 
-export { app, analytics, firebaseConfig };
+export { app, analytics, firebaseConfig, auth, db };
 
 // Optional: exports you might use later (commented examples)
 // import { getAuth } from 'firebase/auth';

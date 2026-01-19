@@ -9,16 +9,12 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
-import {
-  cargarTransacciones,
-  eliminarTransaccion as eliminarTransaccionStorage,
-  limpiarTodasTransacciones,
-  Transaccion,
-} from '../../utils/storage';
+import transactionsAPI from '../../data/transactions';
+import { Transaccion } from '../../utils/storage';
 import {
   calcularTotales,
   agruparPorPeriodo,
@@ -29,38 +25,60 @@ import {
 
 export default function ResultadosScreen() {
   const [transacciones, setTransacciones] = useState<Transaccion[]>([]);
-  const [tipoResultado, setTipoResultado] = useState<'barberia' | 'personal'>('barberia');
+  const [tipoResultado, setTipoResultado] = useState<'negocio' | 'personal'>('negocio');
   const [filtro, setFiltro] = useState<'todas' | 'entrada' | 'salida'>('todas');
 
-  useEffect(() => {
-    cargarDatos();
-  }, []);
-  const { refreshKey, setLoading, showToast } = useRefresh();
+  const { refreshKey, setLoading, showToast, session, sessionLoaded } = useRefresh();
 
   useEffect(() => {
-    // recarga cuando se dispara refresh global
-    cargarDatos();
-  }, [refreshKey]);
-
-  const cargarDatos = async () => {
-    try {
-      setLoading(true);
-      const trans = await cargarTransacciones();
-      setTransacciones(trans);
-    } catch (err) {
-      console.error(err);
-      showToast('No se pudieron cargar las transacciones', 'error');
-    } finally {
-      setLoading(false);
+    let unsub: any;
+    if (sessionLoaded && session?.businessId) {
+      try {
+        setLoading(true);
+        unsub = transactionsAPI.subscribeTransactions(session.businessId, (items: any[]) => {
+          // map firestore items to local Transaccion shape
+          const mapped: Transaccion[] = items.map((it) => {
+            const created = (it.createdAt && typeof it.createdAt.toDate === 'function') ? it.createdAt.toDate().toISOString() : (it.fecha || new Date().toISOString());
+            const scope = it.scope || (it.tipo && String(it.tipo).startsWith('personal') ? 'personal' : 'negocio');
+            return {
+              id: it.id,
+              tipo: it.type || it.tipo,
+              scope,
+              servicio: it.servicio || null,
+              serviceId: it.serviceId || null,
+              categoria: it.categoria || null,
+              categoryId: it.categoryId || null,
+              concepto: it.description || it.concepto || null,
+              monto: it.amount || it.monto || 0,
+              amount: it.amount || it.monto || 0,
+              precio: it.amount || it.precio || 0,
+              metodoPago: it.method || it.metodoPago || 'efectivo',
+              fecha: (it.date && typeof it.date.toDate === 'function') ? it.date.toDate().toISOString() : created,
+            } as Transaccion;
+          });
+          setTransacciones(mapped);
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error(err);
+        showToast('No se pudieron cargar las transacciones', 'error');
+        setLoading(false);
+      }
     }
-  };
+    return () => {
+      if (unsub) unsub();
+    };
+  }, [session, sessionLoaded, refreshKey]);
 
   const transaccionesFiltradas = transacciones.filter((t) => {
-    // Filtrar por tipo de resultado (barbería o personal)
-    if (tipoResultado === 'barberia') {
-      if (t.tipo !== 'entrada' && t.tipo !== 'salida') return false;
+    // Filtrar por tipo de resultado (negocio o personal)
+    if (tipoResultado === 'negocio') {
+      if (t.scope !== 'negocio') return false;
+    } else {
+      // Personal incluye ambos
+      // No filter needed for scope here if we want to show everything
     }
-    
+
     // Filtrar por tipo de transacción (entrada/salida)
     if (filtro === 'todas') return true;
     if (filtro === 'entrada') return t.tipo === 'entrada' || t.tipo === 'personal-entrada';
@@ -81,11 +99,11 @@ export default function ResultadosScreen() {
         transacciones: transaccionesFiltradas,
       };
 
-      const fileName = `barberia-${tipoResultado}-${new Date().toISOString().split('T')[0]}.json`;
-      const fileUri = FileSystem.documentDirectory + fileName;
-      
+      const fileName = `negocio-${tipoResultado}-${new Date().toISOString().split('T')[0]}.json`;
+      const fileUri = (FileSystem.documentDirectory || '') + fileName;
+
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(datos, null, 2));
-      
+
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri);
         showToast('Datos exportados correctamente', 'success');
@@ -110,8 +128,8 @@ export default function ResultadosScreen() {
           onPress: async () => {
             try {
               setLoading(true);
-              await eliminarTransaccionStorage(id);
-              await cargarDatos();
+              if (!session?.businessId) throw new Error('Caja no disponible');
+              await transactionsAPI.deleteTransaction(session.businessId, id);
               showToast('Transacción eliminada', 'success');
             } catch (err) {
               console.error(err);
@@ -137,8 +155,8 @@ export default function ResultadosScreen() {
           onPress: async () => {
             try {
               setLoading(true);
-              await limpiarTodasTransacciones();
-              await cargarDatos();
+              if (!session?.businessId) throw new Error('Caja no disponible');
+              await transactionsAPI.clearAllTransactions(session.businessId);
               showToast('Todas las transacciones han sido eliminadas', 'success');
             } catch (err) {
               console.error(err);
@@ -153,18 +171,28 @@ export default function ResultadosScreen() {
   };
 
   const obtenerDescripcion = (transaccion: Transaccion) => {
-    if (transaccion.tipo === 'entrada') {
-      return { descripcion: transaccion.servicio || '', tipoLabel: 'Servicio' };
-    } else if (transaccion.tipo === 'salida') {
-      return {
-        descripcion: `${transaccion.categoria}: ${transaccion.concepto}`,
-        tipoLabel: 'Gasto',
-      };
-    } else if (transaccion.tipo === 'personal-entrada') {
-      return { descripcion: transaccion.concepto || '', tipoLabel: 'Personal (E)' };
+    const isEntrada = transaccion.tipo === 'entrada' || transaccion.tipo === 'personal-entrada';
+    const isPersonal = transaccion.scope === 'personal';
+
+    let tipoLabel = '';
+    if (isPersonal) {
+      tipoLabel = isEntrada ? 'Personal (I)' : 'Personal (G)';
     } else {
-      return { descripcion: transaccion.concepto || '', tipoLabel: 'Personal (S)' };
+      tipoLabel = isEntrada ? 'Servicio' : 'Gasto';
     }
+
+    // Nombre de la operación (Servicio o Categoría)
+    let nombreOperacion = isEntrada ? transaccion.servicio : transaccion.categoria;
+    const desc = transaccion.concepto || '';
+
+    let descripcionFinal = '';
+    if (nombreOperacion && desc) {
+      descripcionFinal = `${nombreOperacion} - ${desc}`;
+    } else {
+      descripcionFinal = nombreOperacion || desc || 'Sin descripción';
+    }
+
+    return { descripcion: descripcionFinal, tipoLabel };
   };
 
   return (
@@ -180,22 +208,22 @@ export default function ResultadosScreen() {
           <TouchableOpacity
             style={[
               styles.tipoButton,
-              tipoResultado === 'barberia' && styles.tipoButtonActive,
+              tipoResultado === 'negocio' && styles.tipoButtonActive,
             ]}
-            onPress={() => setTipoResultado('barberia')}
+            onPress={() => setTipoResultado('negocio')}
           >
             <Ionicons
               name="business"
               size={20}
-              color={tipoResultado === 'barberia' ? '#0f172a' : '#64748b'}
+              color={tipoResultado === 'negocio' ? '#0f172a' : '#64748b'}
             />
             <Text
               style={[
                 styles.tipoButtonText,
-                tipoResultado === 'barberia' && styles.tipoButtonTextActive,
+                tipoResultado === 'negocio' && styles.tipoButtonTextActive,
               ]}
             >
-              Barbería
+              Negocio
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -222,25 +250,25 @@ export default function ResultadosScreen() {
         </View>
 
         {/* Descripción */}
-        <Card style={[styles.card, styles.infoCard]}>
+        <Card style={StyleSheet.flatten([styles.card, styles.infoCard])}>
           <CardContent>
             <Text style={styles.infoText}>
-              {tipoResultado === 'barberia'
-                ? '📊 Mostrando solo ingresos por servicios y gastos de la barbería'
-                : '💼 Mostrando todos los ingresos y gastos (barbería + personal)'}
+              {tipoResultado === 'negocio'
+                ? '📊 Mostrando solo ingresos y gastos de tu negocio'
+                : '💼 Mostrando todos los ingresos y gastos (negocio + personal)'}
             </Text>
           </CardContent>
         </Card>
 
         {/* Botones de acción */}
         <View style={styles.actionButtons}>
-          <Button onPress={exportarDatos} variant="outline" style={{ flex: 1 }}>
+          <Button onPress={exportarDatos} variant="outline" style={{ flex: 1, marginRight: 8 }}>
             <Ionicons name="download-outline" size={16} color="#0f172a" />
-            {' Exportar'}
+            <Text>{' Exportar'}</Text>
           </Button>
           <Button onPress={confirmarLimpiarTodo} variant="destructive" style={{ flex: 1 }}>
             <Ionicons name="trash-outline" size={16} color="#fff" />
-            {' Limpiar'}
+            <Text>{' Limpiar'}</Text>
           </Button>
         </View>
 
@@ -351,7 +379,7 @@ export default function ResultadosScreen() {
         ) : (
           periodos.map((periodo) => {
             const totalesPeriodo = calcularTotalesPeriodo(periodo.transacciones);
-            
+
             return (
               <Card key={periodo.periodo} style={styles.periodoCard}>
                 {/* Cabecera del período */}

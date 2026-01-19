@@ -9,7 +9,7 @@ import servicesAPI from '../../data/services';
 import categoriesAPI from '../../data/expenseCategories';
 import transactionsAPI from '../../data/transactions';
 
-export default function PersonalScreen() {
+export default function NegocioScreen() {
   const { refresh, setLoading, showToast, session } = useRefresh();
   const [tipo, setTipo] = useState<'entrada' | 'salida'>('entrada');
   const [method, setMethod] = useState<'efectivo' | 'sinpe'>('efectivo');
@@ -26,10 +26,10 @@ export default function PersonalScreen() {
     let unsubC: any;
     if (session?.businessId) {
       unsubS = servicesAPI.subscribeServices(session.businessId, (items) => {
-        setServices(items.filter(s => s.scope === 'personal'));
+        setServices(items.filter(s => (s.scope || 'negocio') === 'negocio'));
       });
       unsubC = categoriesAPI.subscribeCategories(session.businessId, (items) => {
-        setCategories(items.filter(c => c.scope === 'personal'));
+        setCategories(items.filter(c => (c.scope || 'negocio') === 'negocio'));
       });
     }
     return () => {
@@ -46,6 +46,14 @@ export default function PersonalScreen() {
   }, [selectedService]);
 
   const submit = async () => {
+    if (tipo === 'entrada' && !selectedService) {
+      showToast('Selecciona un servicio', 'error');
+      return;
+    }
+    if (tipo === 'salida' && !selectedCategory) {
+      showToast('Selecciona una categoría', 'error');
+      return;
+    }
     const montoNum = parseFloat(amount) || 0;
     if (montoNum <= 0) {
       showToast('Ingresa un monto válido', 'error');
@@ -54,14 +62,14 @@ export default function PersonalScreen() {
 
     try {
       setLoading(true);
-      if (!session?.businessId) throw new Error('Negocio no disponible');
+      if (!session?.businessId) throw new Error('Caja no disponible');
 
       const sName = tipo === 'entrada' ? services.find(s => s.id === selectedService)?.name : null;
       const cName = tipo === 'salida' ? categories.find(c => c.id === selectedCategory)?.name : null;
 
       const payload: any = {
         type: tipo,
-        scope: 'personal',
+        scope: 'negocio',
         amount: montoNum,
         method,
         serviceId: tipo === 'entrada' ? selectedService : null,
@@ -91,42 +99,36 @@ export default function PersonalScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Finanzas Personales</Text>
-          <Text style={styles.subtitle}>Registra ingresos y gastos personales</Text>
+          <Text style={styles.title}>Mi Negocio</Text>
+          <Text style={styles.subtitle}>Registra entradas y salidas de tu negocio</Text>
         </View>
 
         <Card style={styles.card}>
           <CardHeader>
-            <CardTitle>Nueva Transacción Personal</CardTitle>
+            <CardTitle>Nueva Transacción</CardTitle>
           </CardHeader>
           <CardContent>
-            <View style={styles.typeButtons}>
-              <TouchableOpacity
-                style={[styles.typeButton, tipo === 'entrada' && styles.typeButtonEntrada]}
-                onPress={() => setTipo('entrada')}
-              >
-                <Ionicons name="arrow-up" size={20} color={tipo === 'entrada' ? '#22c55e' : '#64748b'} />
-                <Text style={[styles.typeButtonText, tipo === 'entrada' && styles.typeButtonTextActive]}>Ingreso</Text>
+            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+              <TouchableOpacity style={[styles.typeButton, tipo === 'entrada' && styles.typeActive]} onPress={() => setTipo('entrada')}>
+                <Ionicons name="arrow-up" size={18} color={tipo === 'entrada' ? '#22c55e' : '#64748b'} />
+                <Text style={[styles.typeText, tipo === 'entrada' && styles.typeTextActive]}>Entrada</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.typeButton, tipo === 'salida' && styles.typeButtonSalida]}
-                onPress={() => setTipo('salida')}
-              >
-                <Ionicons name="arrow-down" size={20} color={tipo === 'salida' ? '#ef4444' : '#64748b'} />
-                <Text style={[styles.typeButtonText, tipo === 'salida' && styles.typeButtonTextActive]}>Gasto</Text>
+              <TouchableOpacity style={[styles.typeButton, tipo === 'salida' && styles.typeActive]} onPress={() => setTipo('salida')}>
+                <Ionicons name="arrow-down" size={18} color={tipo === 'salida' ? '#ef4444' : '#64748b'} />
+                <Text style={[styles.typeText, tipo === 'salida' && styles.typeTextActive]}>Salida</Text>
               </TouchableOpacity>
             </View>
 
             {tipo === 'entrada' ? (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Fuente de Ingreso</Text>
+                <Text style={styles.label}>Servicio</Text>
                 <TouchableOpacity style={styles.selector} onPress={() => setModalOpen(true)}>
-                  <Text>{selectedService ? (services.find((s) => s.id === selectedService)?.name) : 'Selecciona una fuente'}</Text>
+                  <Text>{selectedService ? (services.find((s) => s.id === selectedService)?.name) : 'Selecciona un servicio'}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Categoría de Gasto</Text>
+                <Text style={styles.label}>Categoría</Text>
                 <TouchableOpacity style={styles.selector} onPress={() => setModalOpen(true)}>
                   <Text>{selectedCategory ? (categories.find((c) => c.id === selectedCategory)?.name) : 'Selecciona una categoría'}</Text>
                 </TouchableOpacity>
@@ -135,20 +137,12 @@ export default function PersonalScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Método</Text>
-              <View style={styles.paymentButtons}>
-                <TouchableOpacity
-                  style={[styles.paymentButton, method === 'efectivo' && styles.paymentButtonActive]}
-                  onPress={() => setMethod('efectivo')}
-                >
-                  <Text style={styles.emoji}>💵</Text>
-                  <Text style={styles.paymentButtonText}>Efectivo</Text>
+              <View style={{ flexDirection: 'row' }}>
+                <TouchableOpacity style={[styles.methodBtn, method === 'efectivo' && styles.methodActive]} onPress={() => setMethod('efectivo')}>
+                  <Text>💵 Efectivo</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.paymentButton, method === 'sinpe' && styles.paymentButtonActive]}
-                  onPress={() => setMethod('sinpe')}
-                >
-                  <Text style={styles.emoji}>📱</Text>
-                  <Text style={styles.paymentButtonText}>Sinpe</Text>
+                <TouchableOpacity style={[styles.methodBtn, method === 'sinpe' && styles.methodActive]} onPress={() => setMethod('sinpe')}>
+                  <Text>📱 Sinpe</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -159,22 +153,14 @@ export default function PersonalScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Concepto / Descripción</Text>
+              <Text style={styles.label}>Descripción</Text>
               <Input value={description} onChangeText={setDescription} placeholder="Opcional" />
             </View>
 
-            <Button onPress={submit} size="lg" style={styles.submitButton}>
-              <Ionicons name="add" size={20} color="#fff" style={{ marginRight: 8 }} />
-              Registrar Transacción
+            <Button onPress={submit} size="lg">
+              <Ionicons name="add" size={18} color="#fff" style={{ marginRight: 8 }} />
+              Registrar
             </Button>
-          </CardContent>
-        </Card>
-
-        <Card style={StyleSheet.flatten([styles.card, styles.infoCard])}>
-          <CardContent>
-            <Text style={styles.infoText}>
-              💼 Los gastos personales se incluyen en los resultados personales pero no en los del negocio.
-            </Text>
           </CardContent>
         </Card>
       </View>
@@ -183,7 +169,7 @@ export default function PersonalScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{tipo === 'entrada' ? 'Selecciona Fuente' : 'Selecciona Categoría'}</Text>
+              <Text style={styles.modalTitle}>{tipo === 'entrada' ? 'Selecciona un servicio' : 'Selecciona una categoría'}</Text>
               <TouchableOpacity onPress={() => setModalOpen(false)}>
                 <Ionicons name="close" size={24} color="#64748b" />
               </TouchableOpacity>
@@ -195,7 +181,7 @@ export default function PersonalScreen() {
                   setModalOpen(false);
                 }}>
                   <Text style={styles.modalItemName}>{item.name}</Text>
-                  <Text style={styles.modalItemPrice}>{tipo === 'entrada' && item.price > 0 ? `₡${(item.price || 0).toLocaleString()}` : ''}</Text>
+                  <Text style={styles.modalItemPrice}>{tipo === 'entrada' ? `₡${(item.price || 0).toLocaleString()}` : ''}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -213,29 +199,21 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700', color: '#0f172a', marginBottom: 4 },
   subtitle: { fontSize: 14, color: '#64748b' },
   card: { marginBottom: 16 },
-  inputGroup: { marginBottom: 16 },
+  inputGroup: { marginBottom: 12 },
   label: { fontSize: 14, fontWeight: '600', color: '#0f172a', marginBottom: 8 },
-  typeButtons: { flexDirection: 'row', marginBottom: 16 },
-  typeButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 8, paddingVertical: 12, marginRight: 8 },
-  typeButtonEntrada: { borderColor: '#22c55e', backgroundColor: '#f0fdf4' },
-  typeButtonSalida: { borderColor: '#ef4444', backgroundColor: '#fef2f2' },
-  typeButtonText: { fontSize: 16, fontWeight: '600', color: '#64748b', marginLeft: 8 },
-  typeButtonTextActive: { color: '#0f172a' },
   selector: { backgroundColor: '#fff', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0' },
-  paymentButtons: { flexDirection: 'row' },
-  paymentButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 8, paddingVertical: 12, marginRight: 8 },
-  paymentButtonActive: { borderColor: '#0f172a', backgroundColor: '#f1f5f9' },
-  paymentButtonText: { fontSize: 16, fontWeight: '600', color: '#0f172a', marginLeft: 8 },
-  emoji: { fontSize: 20 },
-  submitButton: { marginTop: 8, width: '100%' },
-  infoCard: { backgroundColor: '#dbeafe', borderColor: '#93c5fd' },
-  infoText: { fontSize: 14, color: '#1e40af', textAlign: 'center' },
+  typeButton: { flex: 1, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, marginRight: 8 },
+  typeActive: { backgroundColor: '#f1f5f9', borderColor: '#0f172a' },
+  typeText: { marginLeft: 8 },
+  typeTextActive: { color: '#0f172a', fontWeight: '700' },
+  methodBtn: { flex: 1, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, marginRight: 8 },
+  methodActive: { borderColor: '#0f172a', backgroundColor: '#f1f5f9' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
   modalTitle: { fontSize: 18, fontWeight: '700' },
   modalList: { padding: 16 },
-  modalItem: { padding: 12, borderRadius: 8, backgroundColor: '#f8fafc', marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between' },
+  modalItem: { padding: 12, borderRadius: 8, backgroundColor: '#f8fafc', marginBottom: 8 },
   modalItemName: { fontSize: 16, fontWeight: '600' },
   modalItemPrice: { fontSize: 14, color: '#64748b' },
 });

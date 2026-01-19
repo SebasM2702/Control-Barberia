@@ -3,11 +3,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export interface Transaccion {
   id: string;
   tipo: 'entrada' | 'salida' | 'personal-entrada' | 'personal-salida';
+  scope: 'negocio' | 'personal';
   servicio?: string;
+  serviceId?: string;
   categoria?: string;
+  categoryId?: string;
   concepto?: string;
   precio?: number;
   monto?: number;
+  amount?: number;
   metodoPago: string;
   fecha: string;
 }
@@ -51,7 +55,7 @@ export const cargarTransacciones = async (): Promise<Transaccion[]> => {
     const data = await AsyncStorage.getItem(KEYS.TRANSACCIONES);
     if (data) {
       const transacciones = JSON.parse(data);
-      return transacciones.sort((a: Transaccion, b: Transaccion) => 
+      return transacciones.sort((a: Transaccion, b: Transaccion) =>
         new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
       );
     }
@@ -138,7 +142,7 @@ export const agregarServicio = async (servicio: Servicio): Promise<void> => {
 export const actualizarServicio = async (id: string, precio: number): Promise<void> => {
   try {
     const servicios = await cargarServicios();
-    const nuevosServicios = servicios.map(s => 
+    const nuevosServicios = servicios.map(s =>
       s.id === id ? { ...s, precio } : s
     );
     await guardarServicios(nuevosServicios);
