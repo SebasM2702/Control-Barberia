@@ -28,7 +28,7 @@ export const RefreshProvider: React.FC<{ children: React.ReactNode }> = ({ child
     (async () => {
       try {
         let s = await getStoredSession();
-        if (s.uid && !s.businessId) {
+        if (s.uid) {
           const { loadUserProfile, saveSession } = await import('./auth');
           const profile = await loadUserProfile(s.uid);
           if (profile && profile.businessId) {
@@ -36,7 +36,6 @@ export const RefreshProvider: React.FC<{ children: React.ReactNode }> = ({ child
             await saveSession(s.uid!, profile.businessId!, profile.role || '', profile.name || '');
           }
         }
-
         setSession(s);
       } catch (e) {
         console.error('[RefreshContext] Error loading session:', e);

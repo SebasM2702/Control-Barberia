@@ -21,7 +21,11 @@ const transactionsCollection = (businessId: string) => collection(db, 'businesse
 
 export async function addTransaction(businessId: string, tx: Omit<Transaction, 'id' | 'date'>) {
   try {
-    const ref = await addDoc(transactionsCollection(businessId), { ...tx, date: serverTimestamp() });
+    const ref = await addDoc(transactionsCollection(businessId), {
+      ...tx,
+      date: serverTimestamp(),
+      localCreated: new Date().toISOString()
+    });
     return ref.id;
   } catch (err: any) {
     console.error('addTransaction failed', err);

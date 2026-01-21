@@ -1,18 +1,24 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle, TextStyle, Platform, StyleProp } from 'react-native';
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const Card: React.FC<CardProps> = ({ children, style }) => {
-  return <View style={[styles.card, style]}>{children}</View>;
+  return (
+    <View style={[styles.cardContainer, style]}>
+      <View style={styles.cardInner}>
+        {children}
+      </View>
+    </View>
+  );
 };
 
 interface CardHeaderProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const CardHeader: React.FC<CardHeaderProps> = ({ children, style }) => {
@@ -21,7 +27,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({ children, style }) => {
 
 interface CardTitleProps {
   children: React.ReactNode;
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
 }
 
 export const CardTitle: React.FC<CardTitleProps> = ({ children, style }) => {
@@ -30,7 +36,7 @@ export const CardTitle: React.FC<CardTitleProps> = ({ children, style }) => {
 
 interface CardDescriptionProps {
   children: React.ReactNode;
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
 }
 
 export const CardDescription: React.FC<CardDescriptionProps> = ({ children, style }) => {
@@ -39,7 +45,7 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({ children, styl
 
 interface CardContentProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const CardContent: React.FC<CardContentProps> = ({ children, style }) => {
@@ -47,15 +53,19 @@ export const CardContent: React.FC<CardContentProps> = ({ children, style }) => 
 };
 
 const styles = StyleSheet.create({
-  card: {
+  cardContainer: {
+    borderRadius: 20,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  cardInner: {
+    padding: 20,
   },
   cardHeader: {
     marginBottom: 12,
@@ -63,14 +73,15 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#1e293b',
     marginBottom: 4,
   },
   cardDescription: {
     fontSize: 14,
     color: '#64748b',
+    lineHeight: 20,
   },
   cardContent: {
-    // Styles for content if needed
+    marginTop: 4,
   },
 });

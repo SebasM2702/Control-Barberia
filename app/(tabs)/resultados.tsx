@@ -7,12 +7,30 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Building2,
+  User,
+  Download,
+  Trash2,
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
+  ReceiptText,
+  Wallet,
+  Smartphone,
+  Info,
+  ChevronRight,
+  FilterX,
+  ArrowUpCircle,
+  ArrowDownCircle,
+} from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Button } from '../../components/ui/Button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
+import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import transactionsAPI from '../../data/transactions';
 import { Transaccion } from '../../utils/storage';
 import {
@@ -36,7 +54,6 @@ export default function ResultadosScreen() {
       try {
         setLoading(true);
         unsub = transactionsAPI.subscribeTransactions(session.businessId, (items: any[]) => {
-          // map firestore items to local Transaccion shape
           const mapped: Transaccion[] = items.map((it) => {
             const created = (it.createdAt && typeof it.createdAt.toDate === 'function') ? it.createdAt.toDate().toISOString() : (it.fecha || new Date().toISOString());
             const scope = it.scope || (it.tipo && String(it.tipo).startsWith('personal') ? 'personal' : 'negocio');
@@ -71,15 +88,9 @@ export default function ResultadosScreen() {
   }, [session, sessionLoaded, refreshKey]);
 
   const transaccionesFiltradas = transacciones.filter((t) => {
-    // Filtrar por tipo de resultado (negocio o personal)
     if (tipoResultado === 'negocio') {
       if (t.scope !== 'negocio') return false;
-    } else {
-      // Personal incluye ambos
-      // No filter needed for scope here if we want to show everything
     }
-
-    // Filtrar por tipo de transacción (entrada/salida)
     if (filtro === 'todas') return true;
     if (filtro === 'entrada') return t.tipo === 'entrada' || t.tipo === 'personal-entrada';
     if (filtro === 'salida') return t.tipo === 'salida' || t.tipo === 'personal-salida';
@@ -92,11 +103,20 @@ export default function ResultadosScreen() {
   const exportarDatos = async () => {
     try {
       const datos = {
-        fecha_exportacion: new Date().toLocaleString(),
+        fecha_exportacion: formatearFecha(new Date().toISOString()),
         tipo_resultado: tipoResultado,
         totales,
-        transacciones_por_periodo: periodos,
-        transacciones: transaccionesFiltradas,
+        transacciones_por_periodo: periodos.map(p => ({
+          ...p,
+          transacciones: p.transacciones.map(t => ({
+            ...t,
+            fecha_formateada: formatearFecha(t.fecha)
+          }))
+        })),
+        transacciones: transaccionesFiltradas.map(t => ({
+          ...t,
+          fecha_formateada: formatearFecha(t.fecha)
+        })),
       };
 
       const fileName = `negocio-${tipoResultado}-${new Date().toISOString().split('T')[0]}.json`;
@@ -174,555 +194,311 @@ export default function ResultadosScreen() {
     const isEntrada = transaccion.tipo === 'entrada' || transaccion.tipo === 'personal-entrada';
     const isPersonal = transaccion.scope === 'personal';
 
-    let tipoLabel = '';
-    if (isPersonal) {
-      tipoLabel = isEntrada ? 'Personal (I)' : 'Personal (G)';
-    } else {
-      tipoLabel = isEntrada ? 'Servicio' : 'Gasto';
-    }
-
-    // Nombre de la operación (Servicio o Categoría)
+    let tipoLabel = isPersonal ? (isEntrada ? 'Pers. (I)' : 'Pers. (G)') : (isEntrada ? 'Servicio' : 'Gasto');
     let nombreOperacion = isEntrada ? transaccion.servicio : transaccion.categoria;
     const desc = transaccion.concepto || '';
 
-    let descripcionFinal = '';
-    if (nombreOperacion && desc) {
-      descripcionFinal = `${nombreOperacion} - ${desc}`;
-    } else {
-      descripcionFinal = nombreOperacion || desc || 'Sin descripción';
-    }
-
+    let descripcionFinal = (nombreOperacion && desc) ? `${nombreOperacion} - ${desc}` : (nombreOperacion || desc || 'Sin descripción');
     return { descripcion: descripcionFinal, tipoLabel };
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
+    <LinearGradient colors={['#f8fafc', '#f5f3ff', '#fdf2f8']} style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.title}>Resultados y Balance</Text>
-          <Text style={styles.subtitle}>Resumen financiero</Text>
+          <Text style={styles.subtitle}>Resumen detallado de tu actividad financiera</Text>
         </View>
 
-        {/* Selector de tipo de resultado */}
-        <View style={styles.tipoButtons}>
+        {/* Toggle de Tipo de Resultado */}
+        <View style={styles.toggleContainer}>
           <TouchableOpacity
-            style={[
-              styles.tipoButton,
-              tipoResultado === 'negocio' && styles.tipoButtonActive,
-            ]}
+            activeOpacity={0.8}
+            style={[styles.toggleBtn, tipoResultado === 'negocio' && styles.toggleBtnActive]}
             onPress={() => setTipoResultado('negocio')}
           >
-            <Ionicons
-              name="business"
-              size={20}
-              color={tipoResultado === 'negocio' ? '#0f172a' : '#64748b'}
-            />
-            <Text
-              style={[
-                styles.tipoButtonText,
-                tipoResultado === 'negocio' && styles.tipoButtonTextActive,
-              ]}
-            >
-              Negocio
-            </Text>
+            <Building2 size={18} color={tipoResultado === 'negocio' ? '#6d28d9' : '#64748b'} strokeWidth={2.5} />
+            <Text style={[styles.toggleText, tipoResultado === 'negocio' && styles.toggleTextActive]}>Negocio</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.tipoButton,
-              tipoResultado === 'personal' && styles.tipoButtonActive,
-            ]}
+            activeOpacity={0.8}
+            style={[styles.toggleBtn, tipoResultado === 'personal' && styles.toggleBtnActive]}
             onPress={() => setTipoResultado('personal')}
           >
-            <Ionicons
-              name="person"
-              size={20}
-              color={tipoResultado === 'personal' ? '#0f172a' : '#64748b'}
-            />
-            <Text
-              style={[
-                styles.tipoButtonText,
-                tipoResultado === 'personal' && styles.tipoButtonTextActive,
-              ]}
-            >
-              Personal
-            </Text>
+            <User size={18} color={tipoResultado === 'personal' ? '#6d28d9' : '#64748b'} strokeWidth={2.5} />
+            <Text style={[styles.toggleText, tipoResultado === 'personal' && styles.toggleTextActive]}>Todos</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Descripción */}
-        <Card style={StyleSheet.flatten([styles.card, styles.infoCard])}>
-          <CardContent>
-            <Text style={styles.infoText}>
-              {tipoResultado === 'negocio'
-                ? '📊 Mostrando solo ingresos y gastos de tu negocio'
-                : '💼 Mostrando todos los ingresos y gastos (negocio + personal)'}
-            </Text>
-          </CardContent>
-        </Card>
+        {/* Info Banner */}
+        <View style={styles.infoBanner}>
+          <Info size={16} color="#4338ca" />
+          <Text style={styles.infoBannerText}>
+            {tipoResultado === 'negocio'
+              ? 'Mostrando solo ingresos y gastos operativos del negocio.'
+              : 'Vista consolidada: flujos del negocio y gastos personales.'}
+          </Text>
+        </View>
 
-        {/* Botones de acción */}
-        <View style={styles.actionButtons}>
-          <Button onPress={exportarDatos} variant="outline" style={{ flex: 1, marginRight: 8 }}>
-            <Ionicons name="download-outline" size={16} color="#0f172a" />
-            <Text>{' Exportar'}</Text>
+        {/* Botones de acción rápida */}
+        <View style={styles.quickActions}>
+          <Button
+            variant="outline"
+            size="md"
+            onPress={exportarDatos} // Changed from exportarCSV
+            style={{ flex: 1 }}
+          >
+            <Download size={18} color="#334155" style={{ marginRight: 8 }} />
+            <Text style={{ color: '#334155', fontWeight: '700' }}>Exportar</Text>
           </Button>
-          <Button onPress={confirmarLimpiarTodo} variant="destructive" style={{ flex: 1 }}>
-            <Ionicons name="trash-outline" size={16} color="#fff" />
-            <Text>{' Limpiar'}</Text>
+          <Button
+            variant="destructive"
+            size="md"
+            onPress={confirmarLimpiarTodo} // Changed from handleClearHistory
+            style={{ flex: 1 }}
+          >
+            <Trash2 size={18} color="#ffffff" style={{ marginRight: 8 }} />
+            <Text style={{ color: '#ffffff', fontWeight: '700' }}>Limpiar</Text>
           </Button>
         </View>
 
-        {/* Resumen de totales */}
-        <View style={styles.grid2}>
-          <Card style={styles.gridCard}>
-            <View style={styles.statHeader}>
-              <Ionicons name="trending-up" size={16} color="#22c55e" />
-              <Text style={styles.statLabel}>Entradas</Text>
+        {/* Métricas Principales */}
+        <View style={styles.metricsGrid}>
+          <Card style={[styles.metricCard, { backgroundColor: '#10b981', borderColor: '#10b981' }]}>
+            <View style={styles.metricHeader}>
+              <ArrowUpCircle size={16} color="#ffffff" opacity={0.9} />
+              <Text style={[styles.metricLabel, { color: '#ffffff', opacity: 0.9 }]}>Entradas</Text>
             </View>
-            <Text style={styles.statValueGreen}>
-              {formatearMoneda(totales.totalEntradas)}
-            </Text>
+            <Text style={[styles.metricValue, { color: '#ffffff' }]}>{formatearMoneda(totales.totalEntradas)}</Text>
           </Card>
 
-          <Card style={styles.gridCard}>
-            <View style={styles.statHeader}>
-              <Ionicons name="trending-down" size={16} color="#ef4444" />
-              <Text style={styles.statLabel}>Salidas</Text>
+          <Card style={[styles.metricCard, { backgroundColor: '#ef4444', borderColor: '#ef4444' }]}>
+            <View style={styles.metricHeader}>
+              <ArrowDownCircle size={16} color="#ffffff" opacity={0.9} />
+              <Text style={[styles.metricLabel, { color: '#ffffff', opacity: 0.9 }]}>Salidas</Text>
             </View>
-            <Text style={styles.statValueRed}>
-              {formatearMoneda(totales.totalSalidas)}
-            </Text>
+            <Text style={[styles.metricValue, { color: '#ffffff' }]}>{formatearMoneda(totales.totalSalidas)}</Text>
           </Card>
+        </View>
 
-          <Card style={styles.gridCard}>
-            <View style={styles.statHeader}>
-              <Ionicons name="bar-chart" size={16} color="#64748b" />
-              <Text style={styles.statLabel}>Balance</Text>
+        <View style={styles.metricsGrid}>
+          <Card style={styles.metricCard}>
+            <View style={styles.metricHeader}>
+              <Wallet size={16} color="#2563eb" />
+              <Text style={styles.metricLabel}>Balance</Text>
             </View>
-            <Text style={totales.balance >= 0 ? styles.statValueGreen : styles.statValueRed}>
+            <Text style={[styles.metricValue, { color: totales.balance >= 0 ? '#10b981' : '#ef4444' }]}>
               {formatearMoneda(totales.balance)}
             </Text>
           </Card>
 
-          <Card style={styles.gridCard}>
-            <View style={styles.statHeader}>
-              <Ionicons name="receipt" size={16} color="#64748b" />
-              <Text style={styles.statLabel}>Transacciones</Text>
+          <Card style={styles.metricCard}>
+            <View style={styles.metricHeader}>
+              <TrendingUp size={16} color="#9333ea" />
+              <Text style={styles.metricLabel}>Transacciones</Text>
             </View>
-            <Text style={styles.statValue}>{totales.cantidadTransacciones}</Text>
+            <Text style={styles.metricValue}>{totales.cantidadTransacciones}</Text>
           </Card>
         </View>
 
-        {/* Métodos de pago */}
-        <View style={styles.grid2}>
-          <Card style={styles.gridCard}>
-            <CardHeader>
-              <CardTitle style={styles.paymentTitle}>💵 Efectivo</CardTitle>
-            </CardHeader>
-            <Text style={totales.efectivo >= 0 ? styles.statValueGreen : styles.statValueRed}>
-              {formatearMoneda(totales.efectivo)}
-            </Text>
+        <View style={styles.metricsGrid}>
+          <Card style={styles.metricCard}>
+            <View style={styles.metricHeader}>
+              <Text style={{ fontSize: 16 }}>💵</Text>
+              <Text style={styles.metricLabel}>Efectivo</Text>
+            </View>
+            <Text style={[styles.metricValue, { color: '#10b981' }]}>{formatearMoneda(totales.efectivo)}</Text>
           </Card>
 
-          <Card style={styles.gridCard}>
-            <CardHeader>
-              <CardTitle style={styles.paymentTitle}>📱 Sinpe</CardTitle>
-            </CardHeader>
-            <Text style={totales.sinpe >= 0 ? styles.statValueGreen : styles.statValueRed}>
-              {formatearMoneda(totales.sinpe)}
-            </Text>
+          <Card style={styles.metricCard}>
+            <View style={styles.metricHeader}>
+              <Text style={{ fontSize: 16 }}>📱</Text>
+              <Text style={styles.metricLabel}>Sinpe</Text>
+            </View>
+            <Text style={[styles.metricValue, { color: totales.sinpe >= 0 ? '#10b981' : '#ef4444' }]}>{formatearMoneda(totales.sinpe)}</Text>
           </Card>
         </View>
 
-        {/* Filtros */}
-        <Card style={styles.card}>
-          <CardHeader>
-            <CardTitle>Historial por Período</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <View style={styles.filtroButtons}>
-              <Button
-                onPress={() => setFiltro('todas')}
-                variant={filtro === 'todas' ? 'default' : 'outline'}
-                size="sm"
-                style={{ flex: 1 }}
-              >
-                Todas
-              </Button>
-              <Button
-                onPress={() => setFiltro('entrada')}
-                variant={filtro === 'entrada' ? 'default' : 'outline'}
-                size="sm"
-                style={{ flex: 1 }}
-              >
-                Entradas
-              </Button>
-              <Button
-                onPress={() => setFiltro('salida')}
-                variant={filtro === 'salida' ? 'default' : 'outline'}
-                size="sm"
-                style={{ flex: 1 }}
-              >
-                Salidas
-              </Button>
+        {/* Historial con Filtros */}
+        <View style={styles.historySection}>
+          <View style={styles.historyHeader}>
+            <Text style={styles.historyTitle}>Historial</Text>
+            <View style={styles.filterPills}>
+              {(['todas', 'entrada', 'salida'] as const).map((f) => (
+                <TouchableOpacity
+                  key={f}
+                  style={[styles.filterPill, filtro === f && styles.filterPillActive]}
+                  onPress={() => setFiltro(f)}
+                >
+                  <Text style={[styles.filterPillText, filtro === f && styles.filterPillTextActive]}>
+                    {f === 'todas' ? 'Todos' : f === 'entrada' ? 'Entradas' : 'Salidas'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          </CardContent>
-        </Card>
+          </View>
 
-        {/* Períodos con transacciones */}
-        {periodos.length === 0 ? (
-          <Card style={styles.card}>
-            <CardContent>
-              <Text style={styles.emptyText}>No hay transacciones registradas</Text>
-            </CardContent>
-          </Card>
-        ) : (
-          periodos.map((periodo) => {
-            const totalesPeriodo = calcularTotalesPeriodo(periodo.transacciones);
-
-            return (
-              <Card key={periodo.periodo} style={styles.periodoCard}>
-                {/* Cabecera del período */}
-                <View style={styles.periodoHeader}>
-                  <View>
-                    <Text style={styles.periodoNombre}>{periodo.nombrePeriodo}</Text>
-                    <Text style={styles.periodoCount}>
-                      {periodo.transacciones.length} transacciones
-                    </Text>
+          {periodos.length === 0 ? (
+            <Card style={styles.emptyCard}>
+              <FilterX size={48} color="#cbd5e1" strokeWidth={1.5} />
+              <Text style={styles.emptyText}>No hay registros para mostrar</Text>
+            </Card>
+          ) : (
+            periodos.map((periodo) => (
+              <View key={periodo.periodo} style={styles.periodoGroup}>
+                <View style={styles.periodoStickyHeader}>
+                  <Text style={styles.periodoName}>{periodo.nombrePeriodo}</Text>
+                  <View style={styles.periodoSummary}>
+                    {(() => {
+                      const t = calcularTotalesPeriodo(periodo.transacciones);
+                      return (
+                        <Text style={styles.periodoSummaryText}>
+                          E: <Text style={{ color: '#16a34a', fontWeight: '700' }}>{formatearMoneda(t.totalEntrada)}</Text> •
+                          S: <Text style={{ color: '#dc2626', fontWeight: '700' }}>{formatearMoneda(t.totalSalida)}</Text> •
+                          R: <Text style={{ color: t.balance >= 0 ? '#16a34a' : '#dc2626', fontWeight: '800' }}>{formatearMoneda(t.balance)}</Text>
+                        </Text>
+                      );
+                    })()}
                   </View>
                 </View>
 
-                {/* Totales del período */}
-                <View style={styles.periodoTotales}>
-                  <View style={styles.periodoTotalItem}>
-                    <Text style={styles.periodoTotalLabel}>Entradas</Text>
-                    <Text style={styles.periodoTotalGreen}>
-                      +{formatearMoneda(totalesPeriodo.totalEntrada)}
-                    </Text>
-                  </View>
-                  <View style={styles.periodoTotalItem}>
-                    <Text style={styles.periodoTotalLabel}>Salidas</Text>
-                    <Text style={styles.periodoTotalRed}>
-                      -{formatearMoneda(totalesPeriodo.totalSalida)}
-                    </Text>
-                  </View>
-                  <View style={styles.periodoTotalItem}>
-                    <Text style={styles.periodoTotalLabel}>Balance</Text>
-                    <Text
-                      style={
-                        totalesPeriodo.balance >= 0
-                          ? styles.periodoTotalGreen
-                          : styles.periodoTotalRed
-                      }
-                    >
-                      {formatearMoneda(totalesPeriodo.balance)}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Transacciones */}
-                <View style={styles.transaccionesContainer}>
-                  {periodo.transacciones.map((transaccion) => {
-                    const esEntrada =
-                      transaccion.tipo === 'entrada' || transaccion.tipo === 'personal-entrada';
-                    const monto = transaccion.precio || transaccion.monto || 0;
-                    const { descripcion, tipoLabel } = obtenerDescripcion(transaccion);
-
+                <Card style={styles.listCard}>
+                  {periodo.transacciones.map((t, idx) => {
+                    const esEntrada = t.tipo === 'entrada' || t.tipo === 'personal-entrada';
+                    const { descripcion, tipoLabel } = obtenerDescripcion(t);
                     return (
-                      <View key={transaccion.id} style={styles.transaccionItem}>
-                        <View style={styles.transaccionContent}>
-                          <View style={styles.transaccionBadges}>
-                            <View
-                              style={[
-                                styles.badge,
-                                esEntrada ? styles.badgeGreen : styles.badgeRed,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.badgeText,
-                                  esEntrada ? styles.badgeTextGreen : styles.badgeTextRed,
-                                ]}
-                              >
-                                {tipoLabel}
+                      <View key={t.id}>
+                        <TouchableOpacity
+                          style={styles.listItem}
+                          onLongPress={() => confirmarEliminarTransaccion(t.id)}
+                          activeOpacity={0.6}
+                        >
+                          <View style={[styles.itemIcon, { backgroundColor: esEntrada ? '#f0fdf4' : '#fef2f2' }]}>
+                            {esEntrada ? <TrendingUp size={16} color="#16a34a" /> : <TrendingDown size={16} color="#dc2626" />}
+                          </View>
+                          <View style={styles.itemContent}>
+                            <View style={styles.itemRow}>
+                              <Text style={styles.itemTarget} numberOfLines={1}>{descripcion}</Text>
+                              <Text style={[styles.itemAmount, { color: esEntrada ? '#16a34a' : '#dc2626' }]}>
+                                {esEntrada ? '+' : '-'}{formatearMoneda(t.amount || 0)}
                               </Text>
                             </View>
-                            <View style={styles.badgeOutline}>
-                              <Text style={styles.badgeTextOutline}>
-                                {transaccion.metodoPago === 'efectivo' ? '💵' : '📱'}
-                              </Text>
+                            <View style={styles.itemSubRow}>
+                              <Text style={styles.itemMeta}>{tipoLabel} • {t.metodoPago === 'efectivo' ? 'Efectivo' : 'Sinpe'}</Text>
+                              <Text style={styles.itemDate}>{formatearFecha(t.fecha)}</Text>
                             </View>
                           </View>
-                          <Text style={styles.transaccionDescripcion} numberOfLines={1}>
-                            {descripcion}
-                          </Text>
-                          <Text style={styles.transaccionFecha}>
-                            {formatearFecha(transaccion.fecha)}
-                          </Text>
-                        </View>
-                        <View style={styles.transaccionActions}>
-                          <Text
-                            style={[
-                              styles.transaccionMonto,
-                              esEntrada ? styles.montoGreen : styles.montoRed,
-                            ]}
-                          >
-                            {esEntrada ? '+' : '-'}
-                            {formatearMoneda(monto)}
-                          </Text>
-                          <TouchableOpacity
-                            onPress={() => confirmarEliminarTransaccion(transaccion.id)}
-                            style={styles.deleteButton}
-                          >
-                            <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                          </TouchableOpacity>
-                        </View>
+                        </TouchableOpacity>
+                        {idx < periodo.transacciones.length - 1 && <View style={styles.itemDivider} />}
                       </View>
                     );
                   })}
-                </View>
-              </Card>
-            );
-          })
-        )}
-
-        <View style={{ height: 20 }} />
-      </View>
-    </ScrollView>
+                </Card>
+              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  content: {
-    padding: 16,
-  },
-  header: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-  },
-  tipoButtons: {
+  container: { flex: 1 },
+  scrollContent: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40 },
+  header: { marginBottom: 24 },
+  title: { fontSize: 28, fontWeight: '800', color: '#1e293b', marginBottom: 4 },
+  subtitle: { fontSize: 16, color: '#64748b', lineHeight: 22 },
+
+  toggleContainer: {
     flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 16,
+    padding: 6,
     marginBottom: 16,
   },
-  tipoButton: {
+  toggleBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  toggleBtnActive: {
     backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  tipoButtonActive: {
-    borderColor: '#0f172a',
-    backgroundColor: '#f1f5f9',
-  },
-  tipoButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  tipoButtonTextActive: {
-    color: '#0f172a',
-  },
-  card: {
-    marginBottom: 16,
-  },
-  infoCard: {
-    backgroundColor: '#dbeafe',
-    borderColor: '#93c5fd',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#1e40af',
-    textAlign: 'center',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  grid2: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 16,
-    justifyContent: 'space-between',
-  },
-  gridCard: {
-    width: '48%',
-    padding: 12,
-    marginBottom: 12,
-  },
-  statHeader: {
+  toggleText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
+  toggleTextActive: { color: '#1e293b', fontWeight: '700' },
+
+  infoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#64748b',
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  statValueGreen: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#22c55e',
-  },
-  statValueRed: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#ef4444',
-  },
-  paymentTitle: {
-    fontSize: 16,
-  },
-  filtroButtons: {
-    flexDirection: 'row',
-    marginTop: 8,
-  },
-  periodoCard: {
-    marginBottom: 16,
-    overflow: 'hidden',
-  },
-  periodoHeader: {
-    backgroundColor: '#f1f5f9',
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  periodoNombre: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 4,
-  },
-  periodoCount: {
-    fontSize: 12,
-    color: '#64748b',
-  },
-  periodoTotales: {
-    flexDirection: 'row',
-    backgroundColor: '#f1f5f9',
+    gap: 10,
+    backgroundColor: '#e0e7ff',
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginBottom: 20,
   },
-  periodoTotalItem: {
-    flex: 1,
-  },
-  periodoTotalLabel: {
-    fontSize: 11,
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  periodoTotalGreen: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#22c55e',
-  },
-  periodoTotalRed: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#ef4444',
-  },
-  transaccionesContainer: {
-    padding: 12,
-  },
-  transaccionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    padding: 12,
-  },
-  transaccionContent: {
-    flex: 1,
-    marginRight: 8,
-  },
-  transaccionBadges: {
-    flexDirection: 'row',
-    marginBottom: 6,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  badgeGreen: {
-    backgroundColor: '#dcfce7',
-  },
-  badgeRed: {
-    backgroundColor: '#fee2e2',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  badgeTextGreen: {
-    color: '#166534',
-  },
-  badgeTextRed: {
-    color: '#991b1b',
-  },
-  badgeOutline: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+  infoBannerText: { flex: 1, fontSize: 13, color: '#4338ca', fontWeight: '500' },
+
+  quickActions: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 24, paddingHorizontal: 4 },
+  actionBtn: { flex: 1, flexDirection: 'row', gap: 8, height: 48 },
+  actionBtnText: { fontSize: 14, fontWeight: '700', color: '#475569' },
+
+  metricsGrid: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  metricCard: { flex: 1, padding: 14, backgroundColor: '#ffffff' },
+  metricHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  metricLabel: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+  metricValue: { fontSize: 20, fontWeight: '800', color: '#1e293b' },
+
+  historySection: { gap: 16 },
+  historyHeader: { marginBottom: 8 },
+  historyTitle: { fontSize: 20, fontWeight: '800', color: '#1e293b', marginBottom: 16 },
+  filterPills: { flexDirection: 'row', gap: 8 },
+  filterPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  badgeTextOutline: {
-    fontSize: 11,
+  filterPillActive: { backgroundColor: '#1e293b', borderColor: '#1e293b' },
+  filterPillText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+  filterPillTextActive: { color: '#ffffff' },
+
+  emptyCard: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 16 },
+  emptyText: { color: '#94a3b8', fontSize: 15, fontWeight: '500' },
+
+  periodoGroup: { marginBottom: 24 },
+  periodoStickyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 12,
+    paddingHorizontal: 4
   },
-  transaccionDescripcion: {
-    fontSize: 14,
-    color: '#0f172a',
-    marginBottom: 4,
-  },
-  transaccionFecha: {
-    fontSize: 11,
-    color: '#64748b',
-  },
-  transaccionActions: {
-    alignItems: 'flex-end',
-  },
-  transaccionMonto: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  montoGreen: {
-    color: '#22c55e',
-  },
-  montoRed: {
-    color: '#ef4444',
-  },
-  deleteButton: {
-    padding: 4,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#64748b',
-    fontSize: 14,
-    paddingVertical: 20,
-  },
+  periodoName: { fontSize: 17, fontWeight: '800', color: '#1e293b' },
+  periodoSummary: { flexDirection: 'row' },
+  periodoSummaryText: { fontSize: 13, color: '#64748b', fontWeight: '500' },
+
+  listCard: { padding: 0, overflow: 'hidden' },
+  listItem: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 16 },
+  itemIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  itemContent: { flex: 1 },
+  itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  itemTarget: { fontSize: 15, fontWeight: '700', color: '#1e293b', flex: 1, marginRight: 8 },
+  itemAmount: { fontSize: 16, fontWeight: '800' },
+  itemSubRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  itemMeta: { fontSize: 12, color: '#64748b', fontWeight: '500' },
+  itemDate: { fontSize: 12, color: '#94a3b8' },
+  itemDivider: { height: 1, backgroundColor: '#f1f5f9', marginLeft: 68 },
 });

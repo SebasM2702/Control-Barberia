@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Platform } from 'react-native';
+import { Plus, ArrowUpCircle, ArrowDownCircle, Banknote, Smartphone, X, ChevronRight, Info } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -87,155 +88,287 @@ export default function PersonalScreen() {
     }
   };
 
+  const selectedItemName = tipo === 'entrada'
+    ? (services.find((s) => s.id === selectedService)?.name || 'Selecciona una fuente')
+    : (categories.find((c) => c.id === selectedCategory)?.name || 'Selecciona una categoría');
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
+    <LinearGradient colors={['#f8fafc', '#ecfdf5', '#f0fdfa']} style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.title}>Finanzas Personales</Text>
           <Text style={styles.subtitle}>Registra ingresos y gastos personales</Text>
         </View>
 
-        <Card style={styles.card}>
+        <Card style={styles.mainCard}>
           <CardHeader>
             <CardTitle>Nueva Transacción Personal</CardTitle>
           </CardHeader>
-          <CardContent>
-            <View style={styles.typeButtons}>
+          <CardContent style={styles.form}>
+            {/* Tipo de Transacción */}
+            <View style={styles.typeSelectorContainer}>
               <TouchableOpacity
-                style={[styles.typeButton, tipo === 'entrada' && styles.typeButtonEntrada]}
+                activeOpacity={0.7}
+                style={[styles.typeOption, tipo === 'entrada' && styles.typeOptionActiveIngreso]}
                 onPress={() => setTipo('entrada')}
               >
-                <Ionicons name="arrow-up" size={20} color={tipo === 'entrada' ? '#22c55e' : '#64748b'} />
-                <Text style={[styles.typeButtonText, tipo === 'entrada' && styles.typeButtonTextActive]}>Ingreso</Text>
+                <ArrowUpCircle size={28} color={tipo === 'entrada' ? '#10b981' : '#94a3b8'} strokeWidth={tipo === 'entrada' ? 2.5 : 2} />
+                <Text style={[styles.typeOptionText, tipo === 'entrada' && styles.typeOptionTextActiveIngreso]}>Ingreso</Text>
               </TouchableOpacity>
+
               <TouchableOpacity
-                style={[styles.typeButton, tipo === 'salida' && styles.typeButtonSalida]}
+                activeOpacity={0.7}
+                style={[styles.typeOption, tipo === 'salida' && styles.typeOptionActiveGasto]}
                 onPress={() => setTipo('salida')}
               >
-                <Ionicons name="arrow-down" size={20} color={tipo === 'salida' ? '#ef4444' : '#64748b'} />
-                <Text style={[styles.typeButtonText, tipo === 'salida' && styles.typeButtonTextActive]}>Gasto</Text>
+                <ArrowDownCircle size={28} color={tipo === 'salida' ? '#ef4444' : '#94a3b8'} strokeWidth={tipo === 'salida' ? 2.5 : 2} />
+                <Text style={[styles.typeOptionText, tipo === 'salida' && styles.typeOptionTextActiveGasto]}>Gasto</Text>
               </TouchableOpacity>
             </View>
 
-            {tipo === 'entrada' ? (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Fuente de Ingreso</Text>
-                <TouchableOpacity style={styles.selector} onPress={() => setModalOpen(true)}>
-                  <Text>{selectedService ? (services.find((s) => s.id === selectedService)?.name) : 'Selecciona una fuente'}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Categoría de Gasto</Text>
-                <TouchableOpacity style={styles.selector} onPress={() => setModalOpen(true)}>
-                  <Text>{selectedCategory ? (categories.find((c) => c.id === selectedCategory)?.name) : 'Selecciona una categoría'}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            {/* Selector de Servicio/Categoría */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>{tipo === 'entrada' ? 'Fuente de Ingreso' : 'Categoría de Gasto'}</Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.selector}
+                onPress={() => setModalOpen(true)}
+              >
+                <Text style={[styles.selectorPressed, !selectedService && !selectedCategory && styles.selectorPlaceholder]}>
+                  {selectedItemName}
+                </Text>
+                <ChevronRight size={20} color="#64748b" />
+              </TouchableOpacity>
+            </View>
 
+            {/* Método de Pago */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Método</Text>
-              <View style={styles.paymentButtons}>
+              <View style={styles.methodContainer}>
                 <TouchableOpacity
-                  style={[styles.paymentButton, method === 'efectivo' && styles.paymentButtonActive]}
+                  activeOpacity={0.7}
+                  style={[styles.methodOption, method === 'efectivo' && styles.methodOptionActive]}
                   onPress={() => setMethod('efectivo')}
                 >
-                  <Text style={styles.emoji}>💵</Text>
-                  <Text style={styles.paymentButtonText}>Efectivo</Text>
+                  <Text style={[styles.methodOptionText, method === 'efectivo' && styles.methodOptionTextActive]}>💵 Efectivo</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
-                  style={[styles.paymentButton, method === 'sinpe' && styles.paymentButtonActive]}
+                  activeOpacity={0.7}
+                  style={[styles.methodOption, method === 'sinpe' && styles.methodOptionActive]}
                   onPress={() => setMethod('sinpe')}
                 >
-                  <Text style={styles.emoji}>📱</Text>
-                  <Text style={styles.paymentButtonText}>Sinpe</Text>
+                  <Text style={[styles.methodOptionText, method === 'sinpe' && styles.methodOptionTextActive]}>📱 Sinpe</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
+            {/* Monto */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Monto (₡)</Text>
-              <Input value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="0" />
+              <Input
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="numeric"
+                placeholder="0"
+                style={styles.amountInput}
+              />
             </View>
 
+            {/* Descripción */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Concepto / Descripción</Text>
-              <Input value={description} onChangeText={setDescription} placeholder="Opcional" />
+              <Input
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Opcional"
+              />
             </View>
 
-            <Button onPress={submit} size="lg" style={styles.submitButton}>
-              <Ionicons name="add" size={20} color="#fff" style={{ marginRight: 8 }} />
-              Registrar Transacción
+            <Button onPress={submit} size="lg" style={styles.submitBtn}>
+              <Plus size={20} color="#fff" strokeWidth={3} />
+              <Text style={styles.submitBtnText}>Registrar</Text>
             </Button>
           </CardContent>
         </Card>
 
-        <Card style={StyleSheet.flatten([styles.card, styles.infoCard])}>
-          <CardContent>
-            <Text style={styles.infoText}>
-              💼 Los gastos personales se incluyen en los resultados personales pero no en los del negocio.
-            </Text>
-          </CardContent>
-        </Card>
-      </View>
+        {/* Nota informativa visual */}
+        <View style={styles.infoCard}>
+          <Info size={18} color="#2563eb" />
+          <Text style={styles.infoText}>
+            Los gastos personales se incluyen en los resultados personales pero no en los del negocio.
+          </Text>
+        </View>
+      </ScrollView>
 
-      <Modal visible={modalOpen} animationType="slide" transparent={true} onRequestClose={() => setModalOpen(false)}>
+      <Modal visible={modalOpen} animationType="fade" transparent={true} onRequestClose={() => setModalOpen(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{tipo === 'entrada' ? 'Selecciona Fuente' : 'Selecciona Categoría'}</Text>
-              <TouchableOpacity onPress={() => setModalOpen(false)}>
-                <Ionicons name="close" size={24} color="#64748b" />
+              <TouchableOpacity onPress={() => setModalOpen(false)} style={styles.closeBtn}>
+                <X size={24} color="#64748b" />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalList}>
+            <ScrollView style={styles.modalList} contentContainerStyle={{ paddingBottom: 24 }}>
               {(tipo === 'entrada' ? services : categories).map((item) => (
                 <TouchableOpacity key={item.id} style={styles.modalItem} onPress={() => {
                   if (tipo === 'entrada') setSelectedService(item.id); else setSelectedCategory(item.id);
                   setModalOpen(false);
                 }}>
-                  <Text style={styles.modalItemName}>{item.name}</Text>
-                  <Text style={styles.modalItemPrice}>{tipo === 'entrada' && item.price > 0 ? `₡${(item.price || 0).toLocaleString()}` : ''}</Text>
+                  <View style={styles.modalItemInfo}>
+                    <Text style={styles.modalItemName}>{item.name}</Text>
+                    {tipo === 'entrada' && item.price > 0 && <Text style={styles.modalItemPrice}>₡{(item.price || 0).toLocaleString()}</Text>}
+                  </View>
+                  <ChevronRight size={18} color="#cbd5e1" />
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  content: { padding: 16 },
-  header: { marginBottom: 16 },
-  title: { fontSize: 24, fontWeight: '700', color: '#0f172a', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#64748b' },
-  card: { marginBottom: 16 },
-  inputGroup: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#0f172a', marginBottom: 8 },
-  typeButtons: { flexDirection: 'row', marginBottom: 16 },
-  typeButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 8, paddingVertical: 12, marginRight: 8 },
-  typeButtonEntrada: { borderColor: '#22c55e', backgroundColor: '#f0fdf4' },
-  typeButtonSalida: { borderColor: '#ef4444', backgroundColor: '#fef2f2' },
-  typeButtonText: { fontSize: 16, fontWeight: '600', color: '#64748b', marginLeft: 8 },
-  typeButtonTextActive: { color: '#0f172a' },
-  selector: { backgroundColor: '#fff', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0' },
-  paymentButtons: { flexDirection: 'row' },
-  paymentButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 8, paddingVertical: 12, marginRight: 8 },
-  paymentButtonActive: { borderColor: '#0f172a', backgroundColor: '#f1f5f9' },
-  paymentButtonText: { fontSize: 16, fontWeight: '600', color: '#0f172a', marginLeft: 8 },
-  emoji: { fontSize: 20 },
-  submitButton: { marginTop: 8, width: '100%' },
-  infoCard: { backgroundColor: '#dbeafe', borderColor: '#93c5fd' },
-  infoText: { fontSize: 14, color: '#1e40af', textAlign: 'center' },
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
-  modalTitle: { fontSize: 18, fontWeight: '700' },
-  modalList: { padding: 16 },
-  modalItem: { padding: 12, borderRadius: 8, backgroundColor: '#f8fafc', marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between' },
-  modalItemName: { fontSize: 16, fontWeight: '600' },
-  modalItemPrice: { fontSize: 14, color: '#64748b' },
+  container: { flex: 1 },
+  scrollContent: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40 },
+  header: { marginBottom: 28 },
+  title: { fontSize: 28, fontWeight: '800', color: '#111827', marginBottom: 4 },
+  subtitle: { fontSize: 16, color: '#4b5563', lineHeight: 22 },
+  mainCard: {
+    marginBottom: 20,
+  },
+  form: { gap: 4 },
+  typeSelectorContainer: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 20,
+  },
+  typeOption: {
+    flex: 1,
+    flexDirection: 'column',
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 16,
+    gap: 10,
+  },
+  typeOptionActiveIngreso: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#10b981',
+  },
+  typeOptionActiveGasto: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#94a3b8',
+  },
+  typeOptionText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
+  typeOptionTextActiveIngreso: { color: '#059669', fontWeight: '700' },
+  typeOptionTextActiveGasto: { color: '#475569', fontWeight: '700' },
+
+  inputGroup: { marginBottom: 20 },
+  label: { fontSize: 13, fontWeight: '700', color: '#1e293b', marginBottom: 10, marginLeft: 2 },
+  selector: {
+    backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
+  },
+  selectorPressed: { fontSize: 15, color: '#1e293b', fontWeight: '500' },
+  selectorPlaceholder: { color: '#94a3b8' },
+
+  methodContainer: { flexDirection: 'row', gap: 12 },
+  methodOption: {
+    flex: 1,
+    flexDirection: 'row',
+    padding: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    gap: 8,
+  },
+  methodOptionActive: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#2563eb',
+  },
+  methodOptionText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
+  methodOptionTextActive: { color: '#2563eb', fontWeight: '700' },
+
+  amountInput: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  submitBtn: {
+    marginTop: 8,
+  },
+  submitBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    backgroundColor: '#eff6ff',
+    marginTop: 10,
+    marginBottom: 40,
+  },
+  infoText: { flex: 1, fontSize: 13, color: '#1e40af', fontWeight: '500', lineHeight: 18 },
+
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(17, 24, 39, 0.4)' },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6'
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
+  closeBtn: { padding: 4 },
+  modalList: { padding: 20 },
+  modalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 18,
+    borderRadius: 20,
+    backgroundColor: '#f9fafb',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#f3f4f6'
+  },
+  modalItemInfo: { gap: 4 },
+  modalItemName: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  modalItemPrice: { fontSize: 14, fontWeight: '600', color: '#059669' },
 });

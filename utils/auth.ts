@@ -56,10 +56,11 @@ export async function loadUserProfile(uid: string): Promise<UserProfile | null> 
       return null;
     }
     const rawData = snap.data();
-    // Normalize data: trim all keys to handle invisible spaces (like "businessId ")
+    // Normalize data: trim all keys and string values to handle invisible spaces (like "businessId ")
     const data: any = {};
     Object.keys(rawData).forEach(key => {
-      data[key.trim()] = rawData[key];
+      const val = rawData[key];
+      data[key.trim()] = (typeof val === 'string') ? val.trim() : val;
     });
     return {
       ...data,

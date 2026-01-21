@@ -92,12 +92,15 @@ export const agruparPorPeriodo = (transacciones: Transaccion[]): Periodo[] => {
     .sort((a, b) => b.localeCompare(a))
     .map((key) => {
       const [anio, mes] = key.split('-');
-      const fecha = new Date(parseInt(anio), parseInt(mes));
-      const nombreMes = fecha.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      const meses = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+      ];
+      const nombreMes = meses[parseInt(mes)];
 
       return {
         periodo: key,
-        nombrePeriodo: nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1),
+        nombrePeriodo: `${nombreMes} ${anio}`,
         transacciones: grupos[key].sort((a, b) =>
           new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
         ),
@@ -127,13 +130,16 @@ export const calcularTotalesPeriodo = (transacciones: Transaccion[]) => {
 // Formatear fecha
 export const formatearFecha = (fecha: string): string => {
   const date = new Date(fecha);
-  return date.toLocaleString('es-CR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+
+  if (isNaN(date.getTime())) return 'Fecha inválida';
+
+  const dia = date.getDate().toString().padStart(2, '0');
+  const mes = (date.getMonth() + 1).toString().padStart(2, '0');
+  const anio = date.getFullYear();
+  const horas = date.getHours().toString().padStart(2, '0');
+  const minutos = date.getMinutes().toString().padStart(2, '0');
+
+  return `${dia}/${mes}/${anio} ${horas}:${minutos}`;
 };
 
 // Formatear moneda
