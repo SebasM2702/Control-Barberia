@@ -194,12 +194,15 @@ export default function ResultadosScreen() {
     const isEntrada = transaccion.tipo === 'entrada' || transaccion.tipo === 'personal-entrada';
     const isPersonal = transaccion.scope === 'personal';
 
-    let tipoLabel = isPersonal ? (isEntrada ? 'Pers. (I)' : 'Pers. (G)') : (isEntrada ? 'Servicio' : 'Gasto');
+    let tipoLabel = isPersonal ? (isEntrada ? 'Ingreso' : 'Gasto') : (isEntrada ? 'Servicio' : 'Gasto');
+    let color = isEntrada ? '#16a34a' : '#be185d'; // Deep green for income, deep pink/red for expense
+    let bgColor = isEntrada ? '#f0fdf4' : '#fff1f2';
+
     let nombreOperacion = isEntrada ? transaccion.servicio : transaccion.categoria;
     const desc = transaccion.concepto || '';
 
-    let descripcionFinal = (nombreOperacion && desc) ? `${nombreOperacion} - ${desc}` : (nombreOperacion || desc || 'Sin descripción');
-    return { descripcion: descripcionFinal, tipoLabel };
+    let descripcionFinal = (nombreOperacion && desc) ? `${nombreOperacion}: ${desc}` : (nombreOperacion || desc || 'Sin descripción');
+    return { descripcion: descripcionFinal, tipoLabel, color, bgColor };
   };
 
   return (
@@ -344,58 +347,89 @@ export default function ResultadosScreen() {
               <Text style={styles.emptyText}>No hay registros para mostrar</Text>
             </Card>
           ) : (
-            periodos.map((periodo) => (
-              <View key={periodo.periodo} style={styles.periodoGroup}>
-                <View style={styles.periodoStickyHeader}>
-                  <Text style={styles.periodoName}>{periodo.nombrePeriodo}</Text>
-                  <View style={styles.periodoSummary}>
-                    {(() => {
-                      const t = calcularTotalesPeriodo(periodo.transacciones);
-                      return (
-                        <Text style={styles.periodoSummaryText}>
-                          E: <Text style={{ color: '#16a34a', fontWeight: '700' }}>{formatearMoneda(t.totalEntrada)}</Text> •
-                          S: <Text style={{ color: '#dc2626', fontWeight: '700' }}>{formatearMoneda(t.totalSalida)}</Text> •
-                          R: <Text style={{ color: t.balance >= 0 ? '#16a34a' : '#dc2626', fontWeight: '800' }}>{formatearMoneda(t.balance)}</Text>
-                        </Text>
-                      );
-                    })()}
-                  </View>
-                </View>
-
-                <Card style={styles.listCard}>
-                  {periodo.transacciones.map((t, idx) => {
-                    const esEntrada = t.tipo === 'entrada' || t.tipo === 'personal-entrada';
-                    const { descripcion, tipoLabel } = obtenerDescripcion(t);
-                    return (
-                      <View key={t.id}>
-                        <TouchableOpacity
-                          style={styles.listItem}
-                          onLongPress={() => confirmarEliminarTransaccion(t.id)}
-                          activeOpacity={0.6}
-                        >
-                          <View style={[styles.itemIcon, { backgroundColor: esEntrada ? '#f0fdf4' : '#fef2f2' }]}>
-                            {esEntrada ? <TrendingUp size={16} color="#16a34a" /> : <TrendingDown size={16} color="#dc2626" />}
-                          </View>
-                          <View style={styles.itemContent}>
-                            <View style={styles.itemRow}>
-                              <Text style={styles.itemTarget} numberOfLines={1}>{descripcion}</Text>
-                              <Text style={[styles.itemAmount, { color: esEntrada ? '#16a34a' : '#dc2626' }]}>
-                                {esEntrada ? '+' : '-'}{formatearMoneda(t.amount || 0)}
-                              </Text>
-                            </View>
-                            <View style={styles.itemSubRow}>
-                              <Text style={styles.itemMeta}>{tipoLabel} • {t.metodoPago === 'efectivo' ? 'Efectivo' : 'Sinpe'}</Text>
-                              <Text style={styles.itemDate}>{formatearFecha(t.fecha)}</Text>
-                            </View>
-                          </View>
-                        </TouchableOpacity>
-                        {idx < periodo.transacciones.length - 1 && <View style={styles.itemDivider} />}
+            periodos.map((periodo) => {
+              const stats = calcularTotalesPeriodo(periodo.transacciones);
+              return (
+                <View key={periodo.periodo} style={styles.periodoGroup}>
+                  {/* Card de Resumen Mensual */}
+                  <Card style={styles.mesCard}>
+                    <View style={styles.mesHeader}>
+                      <Text style={styles.mesName}>{periodo.nombrePeriodo}</Text>
+                      <View style={styles.txCountBadge}>
+                        <Text style={styles.txCountText}>{periodo.transacciones.length} transacciones</Text>
                       </View>
-                    );
-                  })}
-                </Card>
-              </View>
-            ))
+                    </View>
+
+                    <View style={styles.mesStatsGrid}>
+                      <View style={styles.mesStatItem}>
+                        <Text style={styles.mesStatLabel}>Entradas</Text>
+                        <Text style={[styles.mesStatValue, { color: '#16a34a' }]}>
+                          +{formatearMoneda(stats.totalEntrada)}
+                        </Text>
+                      </View>
+                      <View style={styles.mesStatItem}>
+                        <Text style={styles.mesStatLabel}>Salidas</Text>
+                        <Text style={[styles.mesStatValue, { color: '#dc2626' }]}>
+                          -{formatearMoneda(stats.totalSalida)}
+                        </Text>
+                      </View>
+                      <View style={styles.mesStatItem}>
+                        <Text style={styles.mesStatLabel}>Balance</Text>
+                        <Text style={[styles.mesStatValue, { color: stats.balance >= 0 ? '#16a34a' : '#dc2626' }]}>
+                          {formatearMoneda(stats.balance)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.itemsContainer}>
+                      {periodo.transacciones.map((t) => {
+                        const esEntrada = t.tipo === 'entrada' || t.tipo === 'personal-entrada';
+                        const { descripcion, tipoLabel, color, bgColor } = obtenerDescripcion(t);
+                        return (
+                          <View key={t.id} style={styles.itemRefContainer}>
+                            <View style={styles.itemBadgeRow}>
+                              <View style={[styles.typeBadge, { backgroundColor: esEntrada ? '#0f172a' : '#be185d' }]}>
+                                <Text style={styles.typeBadgeText}>{tipoLabel}</Text>
+                              </View>
+                              {t.metodoPago === 'efectivo' ? (
+                                <Text style={{ fontSize: 13 }}>💵</Text>
+                              ) : (
+                                <Text style={{ fontSize: 13 }}>📱</Text>
+                              )}
+                            </View>
+
+                            <View style={styles.itemMainRow}>
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.itemTargetDesc}>{descripcion}</Text>
+                                <Text style={styles.itemFullDate}>
+                                  {(() => {
+                                    const d = new Date(t.fecha);
+                                    const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                                    return `${formatearFecha(t.fecha).split(' ')[0]}, ${time}`;
+                                  })()}
+                                </Text>
+                              </View>
+
+                              <View style={styles.itemRightSide}>
+                                <Text style={[styles.itemAmountVal, { color: esEntrada ? '#16a34a' : '#dc2626' }]}>
+                                  {esEntrada ? '+' : '-'}{formatearMoneda(t.amount || 0)}
+                                </Text>
+                                <TouchableOpacity
+                                  onPress={() => confirmarEliminarTransaccion(t.id)}
+                                  style={styles.trashBtn}
+                                >
+                                  <Trash2 size={18} color="#ef4444" />
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </Card>
+                </View>
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -405,7 +439,7 @@ export default function ResultadosScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40 },
+  scrollContent: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingBottom: 80 },
   header: { marginBottom: 24 },
   title: { fontSize: 28, fontWeight: '800', color: '#1e293b', marginBottom: 4 },
   subtitle: { fontSize: 16, color: '#64748b', lineHeight: 22 },
@@ -479,26 +513,61 @@ const styles = StyleSheet.create({
   emptyText: { color: '#94a3b8', fontSize: 15, fontWeight: '500' },
 
   periodoGroup: { marginBottom: 24 },
-  periodoStickyHeader: {
+  mesCard: { padding: 0, overflow: 'hidden', backgroundColor: '#ffffff', borderColor: '#e2e8f0' },
+  mesHeader: {
+    padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 12,
-    paddingHorizontal: 4
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
-  periodoName: { fontSize: 17, fontWeight: '800', color: '#1e293b' },
-  periodoSummary: { flexDirection: 'row' },
-  periodoSummaryText: { fontSize: 13, color: '#64748b', fontWeight: '500' },
+  mesName: { fontSize: 18, fontWeight: '800', color: '#1e293b' },
+  txCountBadge: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  txCountText: { fontSize: 11, color: '#64748b', fontWeight: '700' },
 
-  listCard: { padding: 0, overflow: 'hidden' },
-  listItem: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 16 },
-  itemIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  itemContent: { flex: 1 },
-  itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  itemTarget: { fontSize: 15, fontWeight: '700', color: '#1e293b', flex: 1, marginRight: 8 },
-  itemAmount: { fontSize: 16, fontWeight: '800' },
-  itemSubRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  itemMeta: { fontSize: 12, color: '#64748b', fontWeight: '500' },
-  itemDate: { fontSize: 12, color: '#94a3b8' },
-  itemDivider: { height: 1, backgroundColor: '#f1f5f9', marginLeft: 68 },
+  mesStatsGrid: {
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  mesStatItem: { flex: 1 },
+  mesStatLabel: { fontSize: 12, color: '#64748b', fontWeight: '600', marginBottom: 2 },
+  mesStatValue: { fontSize: 14, fontWeight: '700' },
+
+  itemsContainer: { padding: 12, gap: 12 },
+  itemRefContainer: {
+    backgroundColor: '#f8fafc',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  itemBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  typeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  typeBadgeText: { color: '#ffffff', fontSize: 11, fontWeight: '800' },
+
+  itemMainRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  itemTargetDesc: { fontSize: 14, fontWeight: '700', color: '#1e293b', marginBottom: 2 },
+  itemFullDate: { fontSize: 12, color: '#94a3b8', fontWeight: '500' },
+  itemRightSide: { alignItems: 'flex-end', gap: 4 },
+  itemAmountVal: { fontSize: 16, fontWeight: '800' },
+  trashBtn: {
+    padding: 8,
+    marginRight: -8,
+  },
 });

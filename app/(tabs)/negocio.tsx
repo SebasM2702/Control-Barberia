@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Platform, KeyboardAvoidingView } from 'react-native';
 import { Plus, ArrowUpCircle, ArrowDownCircle, Wallet, Smartphone, X, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button } from '../../components/ui/Button';
@@ -102,104 +102,114 @@ export default function NegocioScreen() {
 
   return (
     <LinearGradient colors={['#f8fafc', '#eff6ff', '#e0e7ff']} style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Mi Negocio</Text>
-          <Text style={styles.subtitle}>Registra entradas y salidas de tu negocio</Text>
-        </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Text style={styles.title}>Mi Negocio</Text>
+            <Text style={styles.subtitle}>Registra entradas y salidas de tu negocio</Text>
+          </View>
 
-        <Card style={styles.mainCard}>
-          <CardHeader>
-            <CardTitle>Nueva Transacción</CardTitle>
-          </CardHeader>
-          <CardContent style={styles.form}>
-            {/* Tipo de Transacción */}
-            <View style={styles.typeSelectorContainer}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[styles.typeOption, tipo === 'entrada' && styles.typeOptionActiveEntrada]}
-                onPress={() => setTipo('entrada')}
-              >
-                <ArrowUpCircle size={28} color={tipo === 'entrada' ? '#10b981' : '#94a3b8'} strokeWidth={tipo === 'entrada' ? 2.5 : 2} />
-                <Text style={[styles.typeOptionText, tipo === 'entrada' && styles.typeOptionTextActiveEntrada]}>Entrada</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[styles.typeOption, tipo === 'salida' && styles.typeOptionActiveSalida]}
-                onPress={() => setTipo('salida')}
-              >
-                <ArrowDownCircle size={28} color={tipo === 'salida' ? '#ef4444' : '#94a3b8'} strokeWidth={tipo === 'salida' ? 2.5 : 2} />
-                <Text style={[styles.typeOptionText, tipo === 'salida' && styles.typeOptionTextActiveSalida]}>Salida</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Selector de Servicio/Categoría */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>{tipo === 'entrada' ? 'Servicio' : 'Categoría'}</Text>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={styles.selector}
-                onPress={() => setModalOpen(true)}
-              >
-                <Text style={[styles.selectorPressed, !selectedService && !selectedCategory && styles.selectorPlaceholder]}>
-                  {selectedItemName}
-                </Text>
-                <ChevronRight size={20} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Método de Pago */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Método</Text>
-              <View style={styles.methodContainer}>
+          <Card style={styles.mainCard}>
+            <CardHeader>
+              <CardTitle>Nueva Transacción</CardTitle>
+            </CardHeader>
+            <CardContent style={styles.form}>
+              {/* Tipo de Transacción */}
+              <View style={styles.typeSelectorContainer}>
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  style={[styles.methodOption, method === 'efectivo' && styles.methodOptionActive]}
-                  onPress={() => setMethod('efectivo')}
+                  style={[styles.typeOption, tipo === 'entrada' && styles.typeOptionActiveEntrada]}
+                  onPress={() => setTipo('entrada')}
                 >
-                  <Text style={[styles.methodOptionText, method === 'efectivo' && styles.methodOptionTextActive]}>💵 Efectivo</Text>
+                  <ArrowUpCircle size={28} color={tipo === 'entrada' ? '#10b981' : '#94a3b8'} strokeWidth={tipo === 'entrada' ? 2.5 : 2} />
+                  <Text style={[styles.typeOptionText, tipo === 'entrada' && styles.typeOptionTextActiveEntrada]}>Entrada</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  style={[styles.methodOption, method === 'sinpe' && styles.methodOptionActive]}
-                  onPress={() => setMethod('sinpe')}
+                  style={[styles.typeOption, tipo === 'salida' && styles.typeOptionActiveSalida]}
+                  onPress={() => setTipo('salida')}
                 >
-                  <Text style={[styles.methodOptionText, method === 'sinpe' && styles.methodOptionTextActive]}>📱 Sinpe</Text>
+                  <ArrowDownCircle size={28} color={tipo === 'salida' ? '#ef4444' : '#94a3b8'} strokeWidth={tipo === 'salida' ? 2.5 : 2} />
+                  <Text style={[styles.typeOptionText, tipo === 'salida' && styles.typeOptionTextActiveSalida]}>Salida</Text>
                 </TouchableOpacity>
               </View>
-            </View>
 
-            {/* Monto */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Monto (₡)</Text>
-              <Input
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="numeric"
-                placeholder="0"
-                style={styles.amountInput}
-              />
-            </View>
+              {/* Selector de Servicio/Categoría */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>{tipo === 'entrada' ? 'Servicio' : 'Categoría'}</Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={styles.selector}
+                  onPress={() => setModalOpen(true)}
+                >
+                  <Text style={[styles.selectorPressed, !selectedService && !selectedCategory && styles.selectorPlaceholder]}>
+                    {selectedItemName}
+                  </Text>
+                  <ChevronRight size={20} color="#64748b" />
+                </TouchableOpacity>
+              </View>
 
-            {/* Descripción */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Descripción</Text>
-              <Input
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Opcional"
-              />
-            </View>
+              {/* Método de Pago */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Método</Text>
+                <View style={styles.methodContainer}>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    style={[styles.methodOption, method === 'efectivo' && styles.methodOptionActive]}
+                    onPress={() => setMethod('efectivo')}
+                  >
+                    <Text style={[styles.methodOptionText, method === 'efectivo' && styles.methodOptionTextActive]}>💵 Efectivo</Text>
+                  </TouchableOpacity>
 
-            <Button onPress={submit} size="lg" style={styles.submitBtn} variant="default">
-              <Plus size={20} color="#fff" strokeWidth={3} />
-              <Text style={styles.submitBtnText}>Registrar</Text>
-            </Button>
-          </CardContent>
-        </Card>
-      </ScrollView>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    style={[styles.methodOption, method === 'sinpe' && styles.methodOptionActive]}
+                    onPress={() => setMethod('sinpe')}
+                  >
+                    <Text style={[styles.methodOptionText, method === 'sinpe' && styles.methodOptionTextActive]}>📱 Sinpe</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Monto */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Monto (₡)</Text>
+                <Input
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  style={styles.amountInput}
+                />
+              </View>
+
+              {/* Descripción */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Descripción</Text>
+                <Input
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Opcional"
+                />
+              </View>
+
+              <Button onPress={submit} size="lg" style={styles.submitBtn} variant="default">
+                <Plus size={20} color="#fff" strokeWidth={3} />
+                <Text style={styles.submitBtnText}>Registrar</Text>
+              </Button>
+            </CardContent>
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal visible={modalOpen} animationType="fade" transparent={true} onRequestClose={() => setModalOpen(false)}>
         <View style={styles.modalOverlay}>
@@ -233,7 +243,7 @@ export default function NegocioScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40 },
+  scrollContent: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingBottom: 80 },
   header: { marginBottom: 28 },
   title: { fontSize: 28, fontWeight: '800', color: '#1e293b', marginBottom: 4 },
   subtitle: { fontSize: 16, color: '#64748b', lineHeight: 22 },

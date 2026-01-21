@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import {
   Building2,
   User,
@@ -290,34 +290,39 @@ export default function ConfigNegocio() {
 
       <Modal visible={modalType !== null} animationType="fade" transparent={true} onRequestClose={() => setModalType(null)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editId ? 'Editar' : 'Nuevo'} {modalType === 'service' ? (viewMode === 'negocio' ? 'Servicio' : 'Ingreso') : 'Categoría'}</Text>
-              <TouchableOpacity onPress={() => setModalType(null)} style={styles.closeBtn}>
-                <X size={24} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.modalForm}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Nombre</Text>
-                <Input value={name} onChangeText={setName} placeholder="Ej: Corte Premium" />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ width: '100%' }}
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{editId ? 'Editar' : 'Nuevo'} {modalType === 'service' ? (viewMode === 'negocio' ? 'Servicio' : 'Ingreso') : 'Categoría'}</Text>
+                <TouchableOpacity onPress={() => setModalType(null)} style={styles.closeBtn}>
+                  <X size={24} color="#64748b" />
+                </TouchableOpacity>
               </View>
-              {modalType === 'service' && (
-                <View style={[styles.inputGroup, { marginTop: 8 }]}>
-                  <Text style={styles.label}>Precio Sugerido (₡)</Text>
-                  <Input value={price} onChangeText={setPrice} keyboardType="numeric" placeholder="0" />
+              <View style={styles.modalForm}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Nombre</Text>
+                  <Input value={name} onChangeText={setName} placeholder="Ej: Corte Premium" />
                 </View>
-              )}
-              <View style={styles.modalActions}>
-                <Button variant="outline" onPress={() => setModalType(null)} style={styles.modalBtn}>
-                  Cancelar
-                </Button>
-                <Button onPress={save} style={styles.modalBtn}>
-                  Guardar
-                </Button>
+                {modalType === 'service' && (
+                  <View style={[styles.inputGroup, { marginTop: 8 }]}>
+                    <Text style={styles.label}>Precio Sugerido (₡)</Text>
+                    <Input value={price} onChangeText={setPrice} keyboardType="numeric" placeholder="0" />
+                  </View>
+                )}
+                <View style={styles.modalActions}>
+                  <Button variant="outline" onPress={() => setModalType(null)} style={styles.modalBtn}>
+                    Cancelar
+                  </Button>
+                  <Button onPress={save} style={styles.modalBtn}>
+                    Guardar
+                  </Button>
+                </View>
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </LinearGradient>
@@ -326,7 +331,7 @@ export default function ConfigNegocio() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40 },
+  scrollContent: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingBottom: 80 },
   header: { marginBottom: 28 },
   title: { fontSize: 28, fontWeight: '800', color: '#1e293b', marginBottom: 4 },
   subtitle: { fontSize: 16, color: '#64748b', lineHeight: 22 },
